@@ -19,6 +19,7 @@ THIRD_PARTY_APPS = [
 
 APPS = [
     "coreApi",
+    "organizationApi",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + APPS
@@ -82,9 +83,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # SOCIAL_AUTH_USER_MODEL = 'core.User'
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-    ]
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ),
 }
 
 SOCIAL_AUTH_TRAILING_SLASH = False
