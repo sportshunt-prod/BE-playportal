@@ -72,6 +72,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
 USE_I18N = True
@@ -79,8 +80,8 @@ USE_TZ = True
 
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-# AUTH_USER_MODEL = "core.User"
-# SOCIAL_AUTH_USER_MODEL = 'core.User'
+AUTH_USER_MODEL = "core.User"
+SOCIAL_AUTH_USER_MODEL = 'core.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (

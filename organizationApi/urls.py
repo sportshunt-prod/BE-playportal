@@ -5,3 +5,5 @@ from .views import *
 urlpatterns = [
     
 ]
+
+app_name = 'org'
