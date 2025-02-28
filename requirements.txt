@@ -1,0 +1,5 @@
+django
+social-auth-app-django
+PyJwt
+django-cors-headers
+python-dotenv
