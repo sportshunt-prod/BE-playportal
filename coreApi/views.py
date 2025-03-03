@@ -23,11 +23,11 @@ def index(req):
             user = User.objects.get(id=user)
             return Response({
                 'isAuthenticated': True,
-                # 'user': {
-                #     'id': user.id,
-                #     'username': user.username,
-                #     'email': user.email
-                # }
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email
+                }
             })
     
     return Response({

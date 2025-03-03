@@ -23,6 +23,7 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = '__all__'
+        depth = 1
 
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -37,9 +38,12 @@ class TournamentListSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'organization', 'start_date', 'end_date', 
                  'venue_address', 'completed', 'start_month', 'start_day_date', 
                  'card_details', 'end_date_']
-
+    
 class TournamentDetailSerializer(serializers.ModelSerializer):
+    
+    organization = OrganizationSerializer()
     categories = CategorySerializer(many=True, read_only=True)
+    sport = serializers.CharField(source='sport.name', read_only=True)
 
     class Meta:
         model = Tournament

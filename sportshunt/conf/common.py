@@ -80,8 +80,8 @@ USE_TZ = True
 
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-AUTH_USER_MODEL = "core.User"
-SOCIAL_AUTH_USER_MODEL = 'core.User'
+AUTH_USER_MODEL = "coreApi.User"
+SOCIAL_AUTH_USER_MODEL = 'coreApi.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (

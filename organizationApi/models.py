@@ -28,7 +28,7 @@ class Sport(models.Model):
     scoring_type = models.CharField(max_length=10, choices=SCORING_TYPES)
 
     def __str__(self):
-        return self.get_name_display()
+        return self.name
 
 
 # Organization and Tournament Models
