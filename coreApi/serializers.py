@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
+from coreApi.models import User
 from organizationApi.models import Tournament, Organization, Category
 
 class UserProfileSerializer(serializers.ModelSerializer):
