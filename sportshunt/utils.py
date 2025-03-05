@@ -40,51 +40,72 @@ def login_required_api(f):
 
 def organizer_required_api(f):
     @wraps(f)
-    def decorated_function(req,  *args, **kwargs):
-        token = req.COOKIES.get('jwt_token')
-        if token:
-            if user := get_user_from_token(token):
+    def decorated_function(req, *args, **kwargs):
+        # token = req.COOKIES.get('jwt_token')
+        # if not token:
+        #     return Response(
+        #         {"error": "Authentication token missing"},
+        #         status=status.HTTP_401_UNAUTHORIZED
+        #     )
+            
+        # user_id = get_user_from_token(token)
+        # if not user_id:
+        #     return Response(
+        #         {"error": "Invalid or expired token"},
+        #         status=status.HTTP_401_UNAUTHORIZED
+        #     )
+        user_id = 1 # Hardcoded for testing
+        try:
+            user_instance = User.objects.get(id=user_id)
+            req.user = user_instance
+            
+            if not user_instance.is_organizer:
+                return Response(
+                    {"error": "Only organizers can access this endpoint"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+                
+            # Check tournament access if tournament_id is provided
+            if 'tournament_id' in kwargs:
+                tournament_id = kwargs['tournament_id']
                 try:
-                    user_instance = User.objects.get(id=user)
-                    req.user = user_instance
-                    if user_instance.is_organizer:
-                        if 'tournament_id' in kwargs:
-                            tournament_id = kwargs['tournament_id']
-                            tournament_instance = Tournament.objects.get(id=tournament_id)
-                            if tournament_instance.organization.admin != user_instance:
-                                return Response(
-                                    {"error": "Only organizers of the organization can access this endpoint"},
-                                    status=status.HTTP_403_FORBIDDEN
-                                )
-                        if 'category_id' in kwargs:
-                            category_id = kwargs['category_id']
-                            category_instance = Category.objects.get(id=category_id)
-                            if category_instance.tournament.organization.admin != user_instance:
-                                return Response(
-                                    {"error": "Only organizers of the organization can access this endpoint"},
-                                    status=status.HTTP_403_FORBIDDEN
-                                )
-                        return f(req, user=user_instance, *args, **kwargs)
+                    tournament_instance = Tournament.objects.get(id=tournament_id)
+                    if tournament_instance.organization.admin != user_instance:
+                        return Response(
+                            {"error": "You don't have permission to manage this tournament"},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                except Tournament.DoesNotExist:
                     return Response(
-                        {"error": "Only organizers can access this endpoint"},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-                except User.DoesNotExist:
-                    return Response(
-                        {"error": "User not found"},
+                        {"error": "Tournament not found"},
                         status=status.HTTP_404_NOT_FOUND
                     )
-        
-        
-        user_instance = User.objects.get(id=1)
-        req.user = user_instance
-        if user_instance.is_organizer:
-            return f(req, user=user_instance, *args, **kwargs)
-        
-        return Response(
-            {"error": "Unauthorized"},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
+                    
+            # Check category access if category_id is provided
+            if 'category_id' in kwargs:
+                category_id = kwargs['category_id']
+                try:
+                    category_instance = Category.objects.get(id=category_id)
+                    if category_instance.tournament.organization.admin != user_instance:
+                        return Response(
+                            {"error": "You don't have permission to manage this category"},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                except Category.DoesNotExist:
+                    return Response(
+                        {"error": "Category not found"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                    
+            return f(req, *args, **kwargs)
+            
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    
     return decorated_function
 
 

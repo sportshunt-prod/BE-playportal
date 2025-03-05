@@ -3,6 +3,8 @@ from organizationApi.models import Organization
 from datetime import datetime
 import re
 from organizationApi.models import *
+import math
+from django.db import transaction
 
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -179,3 +181,99 @@ class CategorySerializer(serializers.ModelSerializer):
         )
         
         return category
+
+
+class TeamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Team
+        fields = ['id', 'name', 'category']
+        read_only_fields = ['id']
+    
+    def validate_category(self, category):
+        if not category.registration_status:
+            raise serializers.ValidationError("Registration is closed for this category.")
+        return category
+
+
+class FixtureSerializer(serializers.Serializer):
+    fixtureType = serializers.ChoiceField(choices=['KO', 'RR'], required=True)
+    noOfSets = serializers.IntegerField(min_value=1, required=False, default=3)
+    pointsToWin = serializers.IntegerField(min_value=1, required=False, default=15)
+    noOfRounds = serializers.IntegerField(min_value=1, required=False, default=1)
+    
+    def validate(self, data):
+        fixture_type = data.get('fixtureType')
+        
+        # Validate required fields for RR fixture type
+        if fixture_type == 'RR':
+            if 'pointsToWin' not in data:
+                data['pointsToWin'] = 15  # Default value
+            if 'noOfRounds' not in data:
+                data['noOfRounds'] = 1    # Default value
+            if 'noOfSets' not in data:
+                data['noOfSets'] = 3      # Default value
+                
+        return data
+    
+    def create_fixture(self, category_instance):
+        """
+        Create fixture for a category based on validated data
+        """
+        try:
+            with transaction.atomic():
+                teams = category_instance.teams.all()
+                
+                if teams.count() == 1:
+                    category_instance.winner = teams.first()
+                    category_instance.save()
+                    raise serializers.ValidationError(
+                        {"teams": "Only one team in the category, so they won by default"}
+                    )
+                
+                fixture_type = self.validated_data.get('fixtureType')
+                fixture_instance = Fixture.objects.create(fixtureType=fixture_type, category=category_instance)
+                
+                if fixture_type == 'KO':
+                    ko_instance = Knockout.objects.create(category=category_instance)
+                    ko_instance.bracket_teams.set(teams)
+                    no_teams = teams.count()
+                    cur_lvl = math.ceil(math.log2(no_teams))
+                    ko_instance.ko_stage = cur_lvl
+                    ko_instance.save()
+
+                    fixture_instance.content_object = ko_instance
+                    fixture_instance.save()
+                    category_instance.fixture = fixture_instance
+                    category_instance.save()
+
+                elif fixture_type == 'RR':
+                    points_to_win = self.validated_data.get('pointsToWin')
+                    no_of_rounds = self.validated_data.get('noOfRounds')
+                    no_sets = self.validated_data.get('noOfSets')
+                    
+                    category_instance.required_points = points_to_win
+                    category_instance.max_sets = no_sets
+                    rr_instance = RoundRobin.objects.create(
+                        category=category_instance, 
+                        rounds=no_of_rounds,
+                    )
+                    
+                    rr_teams = []
+                    for team in teams:
+                        rr_teams.append(RR_Team.objects.create(team=team, round_robin=rr_instance))
+                    
+                    rr_instance.rr_teams.set(rr_teams)
+                    rr_instance.schedule_matches()    
+                    fixture_instance.content_object = rr_instance
+                    fixture_instance.save()
+                    
+                    category_instance.fixture = fixture_instance
+                    category_instance.save()
+                    rr_instance.save()
+                
+                return fixture_instance
+                
+        except serializers.ValidationError as e:
+            raise e
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
