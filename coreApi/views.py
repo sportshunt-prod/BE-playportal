@@ -29,7 +29,6 @@ def index(req):
                     'email': user.email
                 }
             })
-    
     return Response({
         'isAuthenticated': False
     })

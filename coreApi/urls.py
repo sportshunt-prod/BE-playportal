@@ -3,7 +3,7 @@ from .views import *
 from sportshunt.utils import *
 
 urlpatterns = [
-    path('', index),
+    path('auth/check/', index),
     path("login/", login_view, name="login"),
     path("login/handler/", login_handler, name="login_handler"),
     path("logout/", logout_view, name="logout"),
