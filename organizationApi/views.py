@@ -5,7 +5,44 @@ from rest_framework.response import Response
 from rest_framework import status
 from organizationApi.serializers import *
 from organizationApi.models import Organization, Category, Team
+from coreApi.models import User
+from sportshunt.utils import get_user_from_token
 # Create your views here.
+
+# validate org user
+@api_view(['GET'])
+def index(req):
+    token = req.COOKIES.get('jwt_token')
+    print(token)
+    if token:
+        print('token')
+        if user := get_user_from_token(token):
+            print(user)
+            user = User.objects.get(id=user)
+            print(user)
+            response_data = {
+                'isAuthenticated': True,
+                'user': {
+                    'id': user.id,
+                    'name': user.username,
+                    'email': user.email,
+                    'is_org': user.is_organizer,
+                },
+                'organization': None
+            }
+            if user.is_organizer:
+                org = Organization.objects.filter(admin=user).first()
+                if org:
+                    response_data['organization'] = {
+                        'id': org.id,
+                        'name': org.name,
+                    }
+                print(response_data)
+            return Response(response_data)
+    return Response({
+        'isAuthenticated': False
+    })
+
 
 # create organization
 @api_view(['POST'])
@@ -14,7 +51,7 @@ def create_organization(request, user=None):
     # Create the organization
     serializer = OrganizationSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        serializer.save(owner=request.user)
+        serializer.save(admin=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -164,3 +201,44 @@ def create_fixture(request, tournament_id, category_id):
         )
 
 
+@api_view(['GET'])
+@organizer_required_api
+def org_dashboard(request):
+    # add needed data to org dashboard if needed
+    response = {
+        "upcoming_tournaments": [],
+        "past_tournaments": [],
+    }
+    try:
+        # Get organization where user is admin
+        user_orgs = Organization.objects.filter(admin=request.user)
+        
+        # Get current date
+        current_date = datetime.now().date()
+        
+        # Get upcoming tournaments (start date is in the future)
+        upcoming = Tournament.objects.filter(
+            organization__in=user_orgs,
+            start_date__gte=current_date
+        )
+        
+        # Get past tournaments (end date is in the past)
+        past = Tournament.objects.filter(
+            organization__in=user_orgs,
+            end_date__lt=current_date
+        )
+        
+        # Serialize both sets of tournaments
+        upcoming_serializer = TournamentSerializer(upcoming, many=True)
+        past_serializer = TournamentSerializer(past, many=True)
+        
+        response["upcoming_tournaments"] = upcoming_serializer.data
+        response["past_tournaments"] = past_serializer.data
+        
+        return Response(response)
+    
+    except Exception as e:
+        return Response(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

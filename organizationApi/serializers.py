@@ -10,16 +10,12 @@ class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = ['id', 'name', 'admin', 'mail', 'ph_number']
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'admin']  # Make admin read-only
     
     def validate(self, data):
-        # Get the user from the context
         user = self.context.get('request').user
-        
-        # Check if user already has an organization
         if Organization.objects.filter(admin=user).exists():
             raise serializers.ValidationError("You already have an organization. A user can only have one organization")
-        
         return data
 
     def validate_name(self, value):

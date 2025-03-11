@@ -25,8 +25,9 @@ def index(req):
                 'isAuthenticated': True,
                 'user': {
                     'id': user.id,
-                    'username': user.username,
-                    'email': user.email
+                    'name': user.username,
+                    'email': user.email,
+                    'is_org': user.is_organizer
                 }
             })
     return Response({

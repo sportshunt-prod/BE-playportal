@@ -29,9 +29,12 @@ JWT_SECRET = required_env_vars['JWT_SECRET'].strip()
 ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
-    *[f"{url.strip()}" for url in FRONTEND_URL]
+    *[f"{url.strip()}" for url in FRONTEND_URL],
 ]
 
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Ensure CSRF token is accessible to JavaScript
+CSRF_COOKIE_SAMESITE = 'None'  # Adjust based on your use case
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
