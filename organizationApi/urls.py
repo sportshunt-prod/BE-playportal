@@ -10,6 +10,9 @@ urlpatterns = [
     path('tournament/<int:tournament_id>/category/<int:category_id>/toggle-registration/', views.toggle_registration, name='toggle-registration'),
     path('tournament/<int:tournament_id>/category/<int:category_id>/team/create/', views.register_team, name='create-team'),
     path('tournament/<int:tournament_id>/category/<int:category_id>/fixture/create/', views.create_fixture, name='create-fixture'),
+    path('tournament/<int:tournament_id>/category/<int:category_id>/create_ko_matches/', views.create_ko_matches, name='create-ko-match'),
+    path('tournament/<int:tournament_id>/category/<int:category_id>/schedule_match/', views.schedule_match, name='schedule-match'),
+    path('tournament/<int:tournament_id>/category/<int:category_id>/update_score/', views.update_score, name='update-score'),
 ]
 
 app_name = 'org'

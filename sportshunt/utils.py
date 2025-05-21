@@ -15,6 +15,12 @@ def login_required_api(f):
     @wraps(f)
     def decorated_function(req,  *args, **kwargs):
         token = req.COOKIES.get('jwt_token')
+        
+        if True: # Change to DEV mode if needed
+            user_instance = User.objects.get(id=2)
+            req.user = user_instance
+            return f(req, *args, **kwargs)
+        
         if token:
             if user := get_user_from_token(token):
                 try:
@@ -41,20 +47,20 @@ def login_required_api(f):
 def organizer_required_api(f):
     @wraps(f)
     def decorated_function(req, *args, **kwargs):
-        token = req.COOKIES.get('jwt_token')
-        if not token:
-            return Response(
-                {"error": "Authentication token missing"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+        # token = req.COOKIES.get('jwt_token')
+        # if not token:
+        #     return Response(
+        #         {"error": "Authentication token missing"},
+        #         status=status.HTTP_401_UNAUTHORIZED
+        #     )
             
-        user_id = get_user_from_token(token)
-        if not user_id:
-            return Response(
-                {"error": "Invalid or expired token"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        # user_id = 1 # Hardcoded for testing
+        # user_id = get_user_from_token(token)
+        # if not user_id:
+        #     return Response(
+        #         {"error": "Invalid or expired token"},
+        #         status=status.HTTP_401_UNAUTHORIZED
+        #     )
+        user_id = 2 # Hardcoded for testing
         try:
             user_instance = User.objects.get(id=user_id)
             req.user = user_instance

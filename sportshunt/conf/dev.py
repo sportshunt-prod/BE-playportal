@@ -29,7 +29,8 @@ JWT_SECRET = required_env_vars['JWT_SECRET'].strip()
 ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
-    *[f"{url.strip()}" for url in FRONTEND_URL],
+    *[f"{url.strip()}" for url in FRONTEND_URL ],
+    *[f"https://{url.strip()}" for url in ALLOWED_HOSTS ],
 ]
 
 CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
@@ -47,5 +48,7 @@ STATIC_URL = "static/"
 WSGI_APPLICATION = "sportshunt.wsgi.application"
 
 CORS_ALLOWED_ORIGINS = [
-    *[f"{url.strip()}" for url in FRONTEND_URL]
+    *[f"{url.strip()}" for url in FRONTEND_URL],
+    *[f"https://{url.strip()}" for url in ALLOWED_HOSTS ],
 ]
+CSRF_COOKIE_SAMESITE = 'Lax'

@@ -50,3 +50,7 @@ coverage.xml
 *.cover
 
 frontend/
+
+.github/*
+!.github/workflows
+!.github/workflows/*
