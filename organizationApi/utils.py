@@ -1,6 +1,9 @@
 import math
+import logging
 from . models import Team, Match, SetScore, SimpleScore
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 class KoGen:
     def __init__(self, category_instance, json_data=None, no_sets=3, points_to_win=15):
@@ -98,15 +101,20 @@ class KoGen:
                 match_number=match_number,
                 stage_number=self.ko_stage
             )
-
+    
     def create_scores(self, matches, scoring_type):
         """Create score instances for matches based on scoring type."""
-        for match in matches:
-            if scoring_type == 'sets':
+        if scoring_type == 'sets':
+            # Use bulk_create for better performance with multiple matches
+            set_scores = []
+            for match in matches:
                 for set_num in range(self.no_sets):
-                    SetScore.objects.create(match=match, set_number=set_num + 1)
-            else:
-                SimpleScore.objects.create(match=match)
+                    set_scores.append(SetScore(match=match, set_number=set_num + 1))
+            SetScore.objects.bulk_create(set_scores)
+        else:
+            # Use bulk_create for SimpleScore as well
+            simple_scores = [SimpleScore(match=match) for match in matches]
+            SimpleScore.objects.bulk_create(simple_scores)
 
     def create_matches(self):
         """Create knockout matches based on the provided pairings."""
@@ -158,7 +166,7 @@ class ScoreManager:
         self.team_id = None if self.data.get('action') == 'finish' else int(self.data.get('team_id', 0))
         self.fixture = category_instance.fixture
         self.sport = match_instance.sport
-    
+        
     def validate(self):
         """Validate match and request data."""
         if self.match.match_state:
@@ -171,7 +179,7 @@ class ScoreManager:
             if not self.team_id or self.team_id not in [self.match.team1.id, self.match.team2.id]:
                 return {'error': 'Invalid team ID', 'success': False}
         
-        if self.match not in self.fixture.scheduled_matches.all():
+        if not self.fixture.scheduled_matches.filter(id=self.match.id).exists():
             return {'error': 'Match not scheduled!', 'success': False}
             
         if self.sport.scoring_type == 'sets':

@@ -1,17 +1,20 @@
 from django.shortcuts import render, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from sportshunt.utils import login_required_api
+from sportshunt.utils import login_required_api, get_user_from_token
+from sportshunt.utils.authentication import get_auth_response
 from rest_framework import status
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.contrib.auth import logout
 from django.conf import settings
 from django.utils import timezone
-from sportshunt.utils import get_user_from_token
 from .models import *
 from organizationApi.models import Tournament, Category
 from .serializers import TournamentListSerializer, UserProfileSerializer, TournamentDetailSerializer, CategorySerializer
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -32,23 +35,7 @@ def index(req):
         If not authenticated:
         - isAuthenticated: False
     """
-    token = req.COOKIES.get('jwt_token')
-    if token:
-        if user := get_user_from_token(token):
-
-            user = User.objects.get(id=user)
-            return Response({
-                'isAuthenticated': True,
-                'user': {
-                    'id': user.id,
-                    'name': user.username,
-                    'email': user.email,
-                    'is_org': user.is_organizer
-                }
-            })
-    return Response({
-        'isAuthenticated': False
-    })
+    return get_auth_response(req, include_organization=False)
 
 def login_view(req):
     """
@@ -100,16 +87,15 @@ def tournament_list(request):
         - past_tournaments: List of tournaments with past end dates (max 4)
     """
     current_date = timezone.now().date()
-    
-    # Get upcoming tournaments
+      # Get upcoming tournaments
     upcoming_tournaments = Tournament.objects.filter(
         start_date__gt=current_date
-    ).order_by('start_date')[:4]
+    ).select_related('organization', 'sport').order_by('start_date')[:4]
     
     # Get past tournaments
     past_tournaments = Tournament.objects.filter(
         end_date__lt=current_date
-    ).order_by('-end_date')[:4]
+    ).select_related('organization', 'sport').order_by('-end_date')[:4]
     
     # Serialize the data
     upcoming_serializer = TournamentListSerializer(upcoming_tournaments, many=True)
@@ -130,12 +116,11 @@ def profile_api(request):
     Requires authentication.
     
     HTTP Method: GET
-    
-    Returns:
+      Returns:
         Response: JSON containing the user's profile information as defined in
         UserProfileSerializer (username, email, is_organizer, etc.)
     """
-    print(request.user)
+    logger.debug(f"Fetching profile for user: {request.user.username} (ID: {request.user.id})")
     serializer = UserProfileSerializer(request.user)
     return Response(serializer.data)
 
@@ -158,7 +143,10 @@ def tournament_detail_api(request, tournament_id):
         
         Or 404 status if the tournament doesn't exist
     """
-    tournament = get_object_or_404(Tournament, id=tournament_id)
+    tournament = get_object_or_404(
+        Tournament.objects.select_related('organization', 'sport').prefetch_related('categories'), 
+        id=tournament_id
+    )
     serializer = TournamentDetailSerializer(tournament)
     return Response(serializer.data)
 

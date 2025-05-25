@@ -256,9 +256,11 @@ class FixtureSerializer(serializers.Serializer):
                     
                     rr_teams = []
                     for team in teams:
-                        rr_teams.append(RR_Team.objects.create(team=team, round_robin=rr_instance))
+                        rr_teams.append(RR_Team(team=team, round_robin=rr_instance))
                     
-                    rr_instance.rr_teams.set(rr_teams)
+                    # Use bulk_create for better performance
+                    created_rr_teams = RR_Team.objects.bulk_create(rr_teams)
+                    rr_instance.rr_teams.set(created_rr_teams)
                     rr_instance.schedule_matches()    
                     fixture_instance.content_object = rr_instance
                     fixture_instance.save()

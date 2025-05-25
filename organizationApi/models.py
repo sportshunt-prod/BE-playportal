@@ -99,10 +99,10 @@ class Category(models.Model):
     registration_status = models.BooleanField(default=True)
     max_sets = models.PositiveSmallIntegerField(default=3, blank=True)  # Badminton-specific
     required_points = models.PositiveSmallIntegerField(default=21, blank=True)  # Badminton-specific
-
+    
     @property
     def entries_cnt(self):
-        return self.teams.all().count()
+        return self.teams.count()
     
     @property
     def reg_status(self):
@@ -190,11 +190,14 @@ class RoundRobin(models.Model):
     bracket_matches = models.ManyToManyField('Match', related_name='rr_match', blank=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="rr_category")
     all_matches = models.ManyToManyField('Match', related_name='rr_all_matches', blank=True)
-     
+    
     def schedule_matches(self):
         sport = self.category.tournament.sport
         teams = self.rr_teams.all()
         matches = []
+        set_scores = []
+        simple_scores = []
+        
         for round_no in range(1, self.rounds + 1):
             for i, team1 in enumerate(teams):
                 for j, team2 in enumerate(teams):
@@ -204,15 +207,27 @@ class RoundRobin(models.Model):
                             team2=team2.team,
                             category=self.category,
                             sport=sport,
-                            match_number=len(self.all_matches.all()) + 1,
+                            match_number=self.all_matches.count() + len(matches) + 1,
                             stage_number=round_no,
                         )
+                        matches.append(match)
+                        
+                        # Prepare score objects for bulk creation
                         if sport.scoring_type == 'sets':
                             for set_num in range(self.category.max_sets):
-                                SetScore.objects.create(match=match, set_number=set_num+1)
+                                set_scores.append(SetScore(
+                                    match=match, 
+                                    set_number=set_num + 1
+                                ))
                         else:
-                            SimpleScore.objects.create(match=match)
-                        matches.append(match)
+                            simple_scores.append(SimpleScore(match=match))
+        
+        # Bulk create scores for better performance
+        if set_scores:
+            SetScore.objects.bulk_create(set_scores)
+        if simple_scores:
+            SimpleScore.objects.bulk_create(simple_scores)
+            
         self.bracket_matches.set(matches)
         self.all_matches.add(*matches)
         
@@ -276,15 +291,25 @@ class Match(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     score_system = GenericForeignKey('content_type', 'object_id')
-
+    
     @property
     def team1_sets_won(self):
+        """
+        Returns the number of sets won by team1.
+        Note: This property performs a database query each time it's accessed.
+        Consider caching or denormalization if used frequently in templates or API responses.
+        """
         if self.sport.scoring_type == 'sets':
             return self.sets.filter(winner=self.team1).count()
         return 0
 
     @property
     def team2_sets_won(self):
+        """
+        Returns the number of sets won by team2.
+        Note: This property performs a database query each time it's accessed.
+        Consider caching or denormalization if used frequently in templates or API responses.
+        """
         if self.sport.scoring_type == 'sets':
             return self.sets.filter(winner=self.team2).count()
         return 0

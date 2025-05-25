@@ -1,12 +1,12 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes
-from sportshunt.utils import *
+from sportshunt.utils import organizer_required_api, login_required_api, get_user_from_token
+from sportshunt.utils.authentication import get_auth_response
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import *
 from .models import Organization, Category, Team, Match, SetScore, SimpleScore
 from coreApi.models import User
-from sportshunt.utils import get_user_from_token
 from django.db import transaction
 from .utils import KoGen, ScoreManager
 import math
@@ -36,36 +36,7 @@ def index(req):
         If not authenticated:
         - isAuthenticated: False
     """
-    token = req.COOKIES.get('jwt_token')
-    print(token)
-    if token:
-        print('token')
-        if user := get_user_from_token(token):
-            print(user)
-            user = User.objects.get(id=user)
-            print(user)
-            response_data = {
-                'isAuthenticated': True,
-                'user': {
-                    'id': user.id,
-                    'name': user.username,
-                    'email': user.email,
-                    'is_org': user.is_organizer,
-                },
-                'organization': None
-            }
-            if user.is_organizer:
-                org = Organization.objects.filter(admin=user).first()
-                if org:
-                    response_data['organization'] = {
-                        'id': org.id,
-                        'name': org.name,
-                    }
-                print(response_data)
-            return Response(response_data)
-    return Response({
-        'isAuthenticated': False
-    })
+    return get_auth_response(req, include_organization=True)
 
 
 # create organization
@@ -199,9 +170,8 @@ def toggle_registration(request, tournament_id, category_id):
     """
     try:
         category = Category.objects.get(id=category_id, tournament_id=tournament_id)
-        
-        # Check if trying to close registration
-        if category.registration_status and category.teams.all().count() == 0:
+          # Check if trying to close registration
+        if category.registration_status and category.teams.count() == 0:
             return Response(
                 {'error': 'Cannot close registration - no teams registered'}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -391,18 +361,17 @@ def org_dashboard(request):
         
         # Get current date
         current_date = datetime.now().date()
-        
-        # Get upcoming tournaments (start date is in the future)
+          # Get upcoming tournaments (start date is in the future)
         upcoming = Tournament.objects.filter(
             organization__in=user_orgs,
             start_date__gte=current_date
-        )
+        ).select_related('organization')
         
         # Get past tournaments (end date is in the past)
         past = Tournament.objects.filter(
             organization__in=user_orgs,
             end_date__lt=current_date
-        )
+        ).select_related('organization')
         
         # Serialize both sets of tournaments
         upcoming_serializer = TournamentSerializer(upcoming, many=True)
