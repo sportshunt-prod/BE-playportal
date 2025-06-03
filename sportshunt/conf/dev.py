@@ -35,7 +35,6 @@ CSRF_TRUSTED_ORIGINS = [
 
 CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
 CSRF_COOKIE_HTTPONLY = False  # Ensure CSRF token is accessible to JavaScript
-CSRF_COOKIE_SAMESITE = 'None'  # Adjust based on your use case
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
