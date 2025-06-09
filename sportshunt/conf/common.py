@@ -1,6 +1,26 @@
 from pathlib import Path
+import os
+import tempfile
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+def ensure_logs_directory():
+    """
+    Ensure logs directory exists, with fallback to temporary directory.
+    Returns the absolute path to the logs directory.
+    """
+    logs_dir = BASE_DIR / 'logs'
+    try:
+        logs_dir.mkdir(exist_ok=True)
+        return logs_dir
+    except (PermissionError, OSError):
+        # Fallback to system temp directory for restrictive environments
+        temp_logs_dir = Path(tempfile.gettempdir()) / 'sportshunt_logs'
+        temp_logs_dir.mkdir(exist_ok=True)
+        return temp_logs_dir
+
+# Create logs directory
+LOGS_DIR = ensure_logs_directory()
 
 # Logging Configuration
 LOGGING = {
@@ -23,7 +43,7 @@ LOGGING = {
         },
         'file': {
             'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django.log',
+            'filename': str(LOGS_DIR / 'django.log'),  # Convert Path to string for compatibility
             'formatter': 'verbose',
         },
     },

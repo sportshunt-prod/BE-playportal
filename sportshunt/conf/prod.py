@@ -3,10 +3,138 @@ from dotenv import load_dotenv
 import os
 import secrets
 import string
+from pathlib import Path
+import tempfile
+
 load_dotenv()
+
+# Production-specific logging configuration
+LOGS_DIR = os.environ.get('LOGS_DIR', str(BASE_DIR / 'logs'))
+LOGS_PATH = Path(LOGS_DIR)
+
+# Ensure logs directory exists with proper fallback strategy
+def ensure_log_directory():
+    """
+    Create logs directory with multiple fallback options for different environments.
+    Returns the absolute path to the log file.
+    """
+    # Primary: Use configured logs directory
+    try:
+        LOGS_PATH.mkdir(parents=True, exist_ok=True)
+        log_file = LOGS_PATH / 'django.log'
+        # Test write permissions
+        log_file.touch(exist_ok=True)
+        return str(log_file)
+    except (PermissionError, OSError):
+        pass
+    
+    # Secondary: Try system temp directory with app-specific folder
+    try:
+        temp_logs = Path(tempfile.gettempdir()) / 'sportshunt_logs'
+        temp_logs.mkdir(parents=True, exist_ok=True)
+        log_file = temp_logs / 'django.log'
+        log_file.touch(exist_ok=True)
+        return str(log_file)
+    except (PermissionError, OSError):
+        pass
+    
+    # Tertiary: Use current working directory
+    try:
+        cwd_logs = Path.cwd() / 'logs'
+        cwd_logs.mkdir(parents=True, exist_ok=True)
+        log_file = cwd_logs / 'django.log'
+        log_file.touch(exist_ok=True)
+        return str(log_file)
+    except (PermissionError, OSError):
+        pass
+    
+    # Final fallback: Return None to disable file logging
+    return None
+
+LOG_FILE_PATH = ensure_log_directory()
+
+# Override logging configuration for production
+def get_logging_config():
+    """
+    Get logging configuration with conditional file handler.
+    """
+    handlers = {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'null': {
+            'class': 'logging.NullHandler',
+        },
+    }
+    
+    # Only add file handler if we have a valid log file path
+    if LOG_FILE_PATH:
+        handlers['file'] = {
+            'class': 'logging.FileHandler',
+            'filename': LOG_FILE_PATH,
+            'formatter': 'verbose',
+        }
+        default_handlers = ['console', 'file']
+        app_handlers = ['file']
+    else:
+        # Fallback to console-only logging if file logging fails
+        default_handlers = ['console']
+        app_handlers = ['console']
+    
+    return {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'verbose': {
+                'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+                'style': '{',
+            },
+            'simple': {
+                'format': '{levelname} {message}',
+                'style': '{',
+            },
+        },
+        'handlers': handlers,
+        'root': {
+            'handlers': default_handlers,
+            'level': 'WARNING',
+        },
+        'loggers': {
+            'django': {
+                'handlers': default_handlers,
+                'level': 'INFO',
+                'propagate': False,
+            },
+            'organizationApi': {
+                'handlers': app_handlers,
+                'level': 'INFO',
+                'propagate': False,
+            },
+            'coreApi': {
+                'handlers': app_handlers,
+                'level': 'INFO',
+                'propagate': False,
+            },
+            'sportshunt': {
+                'handlers': app_handlers,
+                'level': 'INFO',
+                'propagate': False,
+            },
+            # Silence noisy third-party loggers
+            'social_django': {
+                'handlers': ['null'],
+                'level': 'WARNING',
+                'propagate': False,
+            },
+        },
+    }
+
+LOGGING = get_logging_config()
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', ''.join(secrets.choice(string.ascii_letters + string.digits + string.punctuation) for _ in range(50)))
 DEBUG = False
+
 required_env_vars = {
     'AUTH0_DOMAIN': os.environ.get('AUTH0_DOMAIN'),
     'AUTH0_CLIENT_ID': os.environ.get('AUTH0_CLIENT_ID'),
