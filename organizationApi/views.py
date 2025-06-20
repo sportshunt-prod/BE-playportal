@@ -396,6 +396,7 @@ def create_ko_matches(request, tournament_id, category_id):
     Create knockout matches for a specific category in a tournament.
     
     This endpoint creates knockout matches based on provided team pairings.
+    Supports both traditional single-stage and optimized complete bracket creation.
     
     HTTP Method: POST
     
@@ -411,13 +412,17 @@ def create_ko_matches(request, tournament_id, category_id):
                 ...
             ],
             "no_sets": 3,  # Optional, for sports with sets
-            "points_win": 15  # Optional, for sports with sets
+            "points_win": 15,  # Optional, for sports with sets
+            "use_complete_bracket": false  # Optional, for optimized bracket creation
         }
     
     Returns:
         Response: JSON containing:
         - success: Boolean indicating if the operation was successful
         - message: Success message
+        - bracket_mode: Type of bracket creation used
+        - matches_created: Number of matches created
+        - immediately_schedulable: Number of matches ready for scheduling
         
         Or error details with appropriate status code.
     """
@@ -427,6 +432,11 @@ def create_ko_matches(request, tournament_id, category_id):
         if not hasattr(category_instance, 'fixture') or category_instance.fixture.fixtureType != "KO":
             return Response({'error': 'Category is not knockout type'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Check if matches already exist
+        existing_matches = category_instance.fixture.content_object.all_matches.count()
+        if existing_matches > 0:
+            return Response({'error': 'Matches already created for this category'}, status=status.HTTP_400_BAD_REQUEST)
+
         # Initialize KO generator based on sport type
         if category_instance.tournament.sport.scoring_type == "sets":
             no_sets = int(request.data.get("no_sets", 3))
@@ -435,20 +445,33 @@ def create_ko_matches(request, tournament_id, category_id):
         else:
             ko_gen = KoGen(category_instance, request.data)
         
-        # Create matches
-        result = ko_gen.create_matches()
+        # Determine bracket creation mode
+        use_complete_bracket = request.data.get("use_complete_bracket", True)
+        
+        # Create matches with specified mode
+        result = ko_gen.create_matches(use_complete_bracket=use_complete_bracket)
         
         # Check for errors
         if isinstance(result, dict):
             if 'error' in result:
                 return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
             if 'errors' in result:
-                return Response({'errors': result['errors']}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'errors': result['errors']}, status=status.HTTP_400_BAD_REQUEST)        
+        # Calculate response metrics
+        ko_instance = category_instance.fixture.content_object
+        total_matches = ko_instance.all_matches.count()
+        schedulable_matches = ko_instance.bracket_matches.count()
+        bracket_mode = "complete_bracket" if use_complete_bracket else "traditional"
+        
+        logger.info(f"KO matches created - Mode: {bracket_mode}, Total: {total_matches}, Schedulable: {schedulable_matches}")
         
         return Response({
             'success': True, 
-            'message': 'Knockout matches created successfully'
-        })
+            'message': f'Knockout matches created successfully using {bracket_mode} mode',
+            'bracket_mode': bracket_mode,
+            'matches_created': total_matches,
+            'immediately_schedulable': schedulable_matches
+        }, status=status.HTTP_201_CREATED)
 
     except Category.DoesNotExist:
         return Response(
@@ -456,8 +479,9 @@ def create_ko_matches(request, tournament_id, category_id):
             status=status.HTTP_404_NOT_FOUND
         )
     except ValueError as e:
-        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': f'Invalid data: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
+        logger.error(f"Error creating knockout matches: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -469,6 +493,7 @@ def schedule_match(request, tournament_id, category_id):
     
     This endpoint allows scheduling a match from either KO or RR fixtures.
     The match is moved from bracket_matches to scheduled_matches.
+    Enhanced with dynamic match availability validation for optimized brackets.
     
     HTTP Method: POST
     
@@ -485,6 +510,8 @@ def schedule_match(request, tournament_id, category_id):
         Response: JSON containing:
         - success: Boolean indicating if the operation was successful
         - message: Success or error message
+        - match: Match details
+        - next_available_matches: Number of matches now available for scheduling
         
         Or error details with appropriate status code.
     """
@@ -509,13 +536,20 @@ def schedule_match(request, tournament_id, category_id):
             
             if match_id not in bracket_matches:
                 return Response(
-                    {'error': 'Match not found in bracket matches'}, 
+                    {'error': 'Match not found in available bracket matches'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
             try:
                 with transaction.atomic():
                     match_instance = Match.objects.get(id=match_id)
+                    
+                    # Enhanced validation for complete bracket mode
+                    if not match_instance.team1 or not match_instance.team2:
+                        return Response(
+                            {'error': 'Match cannot be scheduled - both teams must be assigned'}, 
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
                     
                     # Schedule the match
                     fixture.scheduled_matches.add(match_instance)
@@ -524,6 +558,13 @@ def schedule_match(request, tournament_id, category_id):
                     # Save changes
                     fixture.save()
                     ko_instance.save()
+                      # Calculate remaining available matches
+                    remaining_matches = ko_instance.bracket_matches.filter(
+                        team1__isnull=False, 
+                        team2__isnull=False
+                    ).count()
+                    
+                    logger.info(f"Match {match_id} scheduled: {match_instance.team1.name} vs {match_instance.team2.name}, {remaining_matches} matches remaining")
                     
                 return Response({
                     'success': True,
@@ -531,8 +572,11 @@ def schedule_match(request, tournament_id, category_id):
                     'match': {
                         'id': match_instance.id,
                         'team1': match_instance.team1.name if match_instance.team1 else 'BYE',
-                        'team2': match_instance.team2.name if match_instance.team2 else 'BYE'
-                    }
+                        'team2': match_instance.team2.name if match_instance.team2 else 'BYE',
+                        'stage': match_instance.stage_number,
+                        'match_number': match_instance.match_number
+                    },
+                    'next_available_matches': remaining_matches
                 })
             
             except Match.DoesNotExist:
@@ -540,8 +584,7 @@ def schedule_match(request, tournament_id, category_id):
                     {'error': 'Match not found'}, 
                     status=status.HTTP_404_NOT_FOUND
                 )
-        
-        # Handle RR fixture type
+          # Handle RR fixture type
         elif category_instance.fixture.fixtureType == 'RR':
             rr_instance = fixture.content_object
             bracket_matches = rr_instance.bracket_matches.values_list('id', flat=True)
@@ -564,14 +607,19 @@ def schedule_match(request, tournament_id, category_id):
                     fixture.save()
                     rr_instance.save()
                     
+                    # Calculate remaining matches for consistency
+                    remaining_matches = rr_instance.bracket_matches.count()
+                    
                 return Response({
                     'success': True,
                     'message': 'Match scheduled successfully',
                     'match': {
                         'id': match_instance.id,
                         'team1': match_instance.team1.name if match_instance.team1 else 'BYE',
-                        'team2': match_instance.team2.name if match_instance.team2 else 'BYE'
-                    }
+                        'team2': match_instance.team2.name if match_instance.team2 else 'BYE',
+                        'round': getattr(match_instance, 'round_number', 1)
+                    },
+                    'next_available_matches': remaining_matches
                 })
             
             except Match.DoesNotExist:
@@ -612,6 +660,7 @@ def update_score(request, tournament_id, category_id):
     This endpoint handles score updates for both set-based and simple scoring matches.
     For set-based scoring: Updates individual set scores until match completion.
     For simple scoring: Updates match score and can finish the match.
+    Enhanced with immediate progression and tournament state tracking.
     
     HTTP Method: POST
     
@@ -630,6 +679,10 @@ def update_score(request, tournament_id, category_id):
         Response: JSON containing:
         - success: Boolean indicating if the operation was successful
         - message: Success or error message
+        - match_completed: Boolean indicating if match finished
+        - winner: Winner team name if match completed
+        - next_matches_available: Number of new matches ready for scheduling
+        - tournament_completed: Boolean indicating if tournament finished
         
         Or error details with appropriate status code.
     """
@@ -660,10 +713,49 @@ def update_score(request, tournament_id, category_id):
                 {'error': 'Match not found'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
-        
-        # Process score update
+          # Process score update
         score_manager = ScoreManager(request, match_instance, category_instance)
         result = score_manager.process_score_update(action)
+        
+        # Enhanced response with tournament state tracking
+        if result.get('success', False):
+            # Check if match was completed
+            match_completed = match_instance.match_state
+            
+            if match_completed and category_instance.fixture.fixtureType == 'KO':
+                ko_instance = category_instance.fixture.content_object
+                
+                # Count new matches available for scheduling
+                available_matches = ko_instance.bracket_matches.filter(
+                    team1__isnull=False, 
+                    team2__isnull=False
+                ).count()
+                
+                # Check tournament completion
+                tournament_completed = bool(category_instance.winner)
+                
+                # Enhanced response data
+                result.update({
+                    'match_completed': match_completed,
+                    'winner': match_instance.winner.name if match_instance.winner else None,
+                    'next_matches_available': available_matches,
+                    'tournament_completed': tournament_completed
+                })
+                
+                if tournament_completed:
+                    result['tournament_winner'] = category_instance.winner.name
+                    result['message'] = f" Tournament completed! Winner: {category_instance.winner.name}"
+                    logger.info(f" Tournament {category_instance.id} completed! Winner: {category_instance.winner.name}")
+                elif available_matches > 0:
+                    result['message'] = f"Match completed! {available_matches} new matches ready for scheduling"
+                    logger.info(f"Match completed, {available_matches} matches now available for scheduling")
+            
+            elif match_completed and category_instance.fixture.fixtureType == 'RR':
+                # For Round Robin, just indicate match completion
+                result.update({
+                    'match_completed': match_completed,
+                    'winner': match_instance.winner.name if match_instance.winner else None
+                })
         
         return Response(
             result, 

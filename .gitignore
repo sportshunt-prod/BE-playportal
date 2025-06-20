@@ -54,3 +54,5 @@ frontend/
 .github/*
 !.github/workflows
 !.github/workflows/*
+
+docs

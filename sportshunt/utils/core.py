@@ -56,6 +56,11 @@ def login_required_api(f):
 def organizer_required_api(f):
     @wraps(f)
     def decorated_function(req, *args, **kwargs):
+        
+        # if True:
+        #     req.user = User.objects.get(id=1)
+        #     return f(req, *args, **kwargs)
+        
         token = req.COOKIES.get('jwt_token')
         if not token:
             logger.debug("Authentication token missing")

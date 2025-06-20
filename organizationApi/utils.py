@@ -2,6 +2,7 @@ import math
 import logging
 from . models import Team, Match, SetScore, SimpleScore
 from django.db import transaction
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
@@ -112,16 +113,28 @@ class KoGen:
                     set_scores.append(SetScore(match=match, set_number=set_num + 1))
             SetScore.objects.bulk_create(set_scores)
         else:
-            # Use bulk_create for SimpleScore as well
             simple_scores = [SimpleScore(match=match) for match in matches]
             SimpleScore.objects.bulk_create(simple_scores)
 
-    def create_matches(self):
-        """Create knockout matches based on the provided pairings."""
+    def create_matches(self, use_complete_bracket=False):
+        """Create knockout matches based on the provided pairings.
+        
+        Args:
+            use_complete_bracket (bool): If True, generates complete bracket structure
+                                        and assigns teams to first stage only.
+                                        If False, uses traditional single-stage creation.
+        """
         # Validate match data
         if not self.validate():
             return {'errors': self.errors}
 
+        if use_complete_bracket:
+            return self.create_complete_bracket_with_teams()
+        else:
+            return self.create_traditional_matches()
+    
+    def create_traditional_matches(self):
+        """Traditional single-stage match creation (legacy method)."""
         try:
             with transaction.atomic():
                 matches = []
@@ -145,6 +158,29 @@ class KoGen:
         except Exception as e:
             logger.error(f"Error creating knockout matches: {str(e)}")
             return {'error': str(e)}
+    
+    def create_complete_bracket_with_teams(self):
+        """New method: Generate complete bracket and assign teams to first stage."""
+        try:
+            # Calculate number of teams from provided matches
+            num_teams = len(self.json_data["matches"]) * 2
+            logger.info(f"Creating complete bracket for {num_teams} teams")
+            
+            # Generate complete bracket structure
+            self.generate_complete_bracket(num_teams)
+            
+            # Assign teams to first stage matches
+            result = self.assign_teams_to_first_stage(self.json_data["matches"])
+            
+            if isinstance(result, dict) and ('error' in result or 'errors' in result):
+                return result
+                
+            logger.info(f"Successfully created complete bracket with team assignments")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error creating complete bracket with teams: {str(e)}")
+            return {'error': str(e)}
 
     def update_ko_instance(self, matches, matches_list=None):
         """Update knockout instance with created matches."""
@@ -154,6 +190,167 @@ class KoGen:
         # if matches_list:
             # self.ko_instance.json = KnockoutManager(initial_matches=matches_list).to_json()
         self.ko_instance.save()
+
+    def calculate_bracket_structure(self, num_teams):
+        """Calculate complete bracket structure details."""
+        total_stages = math.ceil(math.log2(num_teams))
+        bracket_structure = {}
+        
+        for stage in range(total_stages, 0, -1):
+            matches_in_stage = 2 ** (stage - 1)
+            bracket_structure[stage] = {
+                'matches_count': matches_in_stage,
+                'stage_name': self.get_stage_name(stage, total_stages)
+            }
+            
+        return total_stages, bracket_structure
+    
+    def get_stage_name(self, stage, total_stages):
+        """Get human-readable stage name."""
+        if stage == 1:
+            return "Final"
+        elif stage == 2:
+            return "Semi-Final"
+        elif stage == 3:
+            return "Quarter-Final"
+        else:
+            return f"Round {total_stages - stage + 1}"
+    
+    def generate_complete_bracket(self, num_teams):
+        """Generate complete knockout bracket structure without teams."""
+        total_stages, bracket_structure = self.calculate_bracket_structure(num_teams)
+        
+        logger.info(f"Generating complete bracket for {num_teams} teams with {total_stages} stages")
+        
+        try:
+            with transaction.atomic():
+                all_matches = []
+                
+                # Create matches stage by stage from highest to lowest
+                for stage in range(total_stages, 0, -1):
+                    matches_in_stage = bracket_structure[stage]['matches_count']
+                    stage_name = bracket_structure[stage]['stage_name']
+                    
+                    logger.debug(f"Creating {matches_in_stage} matches for {stage_name} (stage {stage})")
+                    
+                    for match_num in range(matches_in_stage):
+                        # Create empty match - teams will be assigned later
+                        match = Match.objects.create(
+                            category=self.category,
+                            sport=self.sport,
+                            match_number=match_num,
+                            stage_number=stage,
+                            team1=None,  # Will be assigned when teams are available
+                            team2=None   # Will be assigned when teams are available
+                        )
+                        all_matches.append(match)
+                        
+                        # Create score instances for empty matches
+                        self.create_scores([match], self.sport.scoring_type)
+                
+                # Update KO instance with all matches
+                self.ko_instance.all_matches.add(*all_matches)
+                # Only matches with teams go to bracket_matches initially
+                self.ko_instance.save()
+                
+                logger.info(f"Successfully created complete bracket with {len(all_matches)} matches")
+                return all_matches
+                
+        except Exception as e:
+            logger.error(f"Error generating complete bracket: {str(e)}")
+            raise
+    
+    def assign_teams_to_first_stage(self, matches_data):
+        """Assign teams to first stage matches in pre-generated bracket."""
+        if not self.validate():
+            return {'errors': self.errors}
+            
+        try:
+            with transaction.atomic():
+                # Get first stage matches (highest stage number)
+                first_stage_number = self.ko_instance.all_matches.aggregate(
+                    max_stage=models.Max('stage_number')
+                )['max_stage']
+                
+                first_stage_matches = self.ko_instance.all_matches.filter(
+                    stage_number=first_stage_number
+                ).order_by('match_number')
+                
+                if len(matches_data) != first_stage_matches.count():
+                    return {'error': f'Expected {first_stage_matches.count()} matches, got {len(matches_data)}'}
+                
+                updated_matches = []
+                for i, match_data in enumerate(matches_data):
+                    match = first_stage_matches[i]
+                    team_1, team_2 = self.get_teams(match_data)
+                    
+                    # Assign teams to existing match
+                    match.team1 = team_1
+                    match.team2 = team_2
+                    
+                    # Handle BYE scenarios
+                    if team_1 is None or team_2 is None:
+                        winner = team_1 if team_2 is None else team_2
+                        match.winner = winner
+                        match.match_state = True
+                        self.ko_instance.winners_bracket.add(winner)
+                        # Immediately progress winner to next match
+                        self.progress_winner_to_next_match(match)
+                    else:
+                        # Match is ready to be scheduled
+                        self.ko_instance.bracket_matches.add(match)
+                    
+                    match.save()
+                    updated_matches.append(match)
+                
+                self.ko_instance.save()
+                return updated_matches
+                
+        except Exception as e:
+            logger.error(f"Error assigning teams to first stage: {str(e)}")
+            return {'error': str(e)}
+    
+    def progress_winner_to_next_match(self, completed_match):
+        """Progress winner to next match immediately using mathematical progression."""
+        if completed_match.stage_number <= 1:  # Final match
+            self.category.winner = completed_match.winner
+            self.category.save()
+            logger.info(f"Tournament completed! Winner: {completed_match.winner.name}")
+            return
+            
+        # Calculate next match using mathematical relationships
+        next_match_number = completed_match.match_number // 2
+        next_stage = completed_match.stage_number - 1
+        parent_slot = completed_match.match_number % 2  # 0 or 1
+        
+        logger.debug(f"Progressing winner from Stage {completed_match.stage_number} Match {completed_match.match_number} to Stage {next_stage} Match {next_match_number} Slot {parent_slot}")
+        
+        try:
+            next_match = Match.objects.get(
+                category=self.category,
+                stage_number=next_stage,
+                match_number=next_match_number
+            )
+            
+            # Assign winner to correct slot
+            if parent_slot == 0:
+                next_match.team1 = completed_match.winner
+                logger.debug(f"Assigned {completed_match.winner.name} to team1 slot")
+            else:
+                next_match.team2 = completed_match.winner
+                logger.debug(f"Assigned {completed_match.winner.name} to team2 slot")
+                
+            next_match.save()
+            
+            # Check if next match can be scheduled (both teams ready)
+            if next_match.team1 and next_match.team2:
+                self.ko_instance.bracket_matches.add(next_match)
+                logger.info(f"Next match ready for scheduling: {next_match.team1.name} vs {next_match.team2.name}")
+                
+        except Match.DoesNotExist:
+            logger.error(f"Next match not found: Stage {next_stage}, Match {next_match_number}")
+            # This shouldn't happen with pre-generated brackets
+            raise
 
 class ScoreManager:
     """Manager for handling match score updates in both simple and set-based scoring systems."""
@@ -322,13 +519,16 @@ class ScoreManager:
             self.handle_rr_completion()
     
     def handle_ko_completion(self):
-        """Handle knockout tournament progression."""
+        """Handle knockout tournament progression with immediate advancement."""
         ko_instance = self.fixture.content_object
         ko_instance.winners_bracket.add(self.match.winner)
         ko_instance.save()
         
-        if not ko_instance.bracket_matches.exists() and not self.fixture.scheduled_matches.exists():
-            self.schedule_next_ko_stage(ko_instance)
+        # Use new immediate progression logic
+        ko_gen = KoGen(self.category, {}, self.category.max_sets, self.category.required_points)
+        ko_gen.progress_winner_to_next_match(self.match)
+        
+        logger.info(f"Match completed: {self.match.winner.name} progressed to next stage")
     
     def handle_rr_completion(self):
         """Handle round robin statistics update."""
@@ -337,51 +537,8 @@ class ScoreManager:
             rr_instance.update_team_stats(self.match)
         rr_instance.save()
     
-    def schedule_next_ko_stage(self, ko_instance):
-        """Schedule next stage of knockout tournament."""
-        winners = list(ko_instance.winners_bracket.all())
-        ko_instance.bracket_teams.set(winners)
-        ko_instance.winners_bracket.clear()
-        
-        if ko_instance.ko_stage == 1 and len(winners) == 1:
-            self.category.winner = winners[0]
-            self.category.save()
-            return
-        
-        with transaction.atomic():
-            stage_matches = ko_instance.all_matches.filter(
-                stage_number=ko_instance.ko_stage
-            ).order_by('match_number')
-            
-            match_num = 0
-            for i in range(0, stage_matches.count(), 2):
-                if i + 1 >= stage_matches.count():
-                    break
-                    
-                match1 = stage_matches[i]
-                match2 = stage_matches[i + 1]
-                
-                match = Match.objects.create(
-                    category=self.category,
-                    team1=match1.winner,
-                    team2=match2.winner,
-                    sport=self.match.sport,
-                    match_number=match_num,
-                    stage_number=ko_instance.ko_stage - 1
-                )
-                match_num += 1
-                
-                if self.sport.scoring_type == 'sets':
-                    SetScore.objects.bulk_create([
-                        SetScore(match=match, set_number=j + 1) 
-                        for j in range(self.category.max_sets)
-                    ])
-                else:
-                    SimpleScore.objects.create(match=match)
-                    
-                ko_instance.bracket_matches.add(match)
-                ko_instance.all_matches.add(match)
-            
-            ko_instance.ko_stage -= 1
-            ko_instance.save()
+    # Note: schedule_next_ko_stage method has been removed and replaced with 
+    # immediate progression logic in KoGen.progress_winner_to_next_match()
+    # This provides better performance and allows matches to be scheduled
+    # as soon as both teams are available, rather than waiting for entire stages.
 
