@@ -28,13 +28,12 @@ JWT_SECRET = required_env_vars['JWT_SECRET'].strip()
 
 ALLOWED_HOSTS = ['*']
 
+# CORS_ALLOW_ALL_ORIGINS = True
 CSRF_TRUSTED_ORIGINS = [
-    *[f"{url.strip()}" for url in FRONTEND_URL ],
-    *[f"https://{url.strip()}" for url in ALLOWED_HOSTS ],
+    *[f"{url.strip()}" for url in FRONTEND_URL],
 ]
+CORS_ALLOW_CREDENTIALS = True
 
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
-CSRF_COOKIE_HTTPONLY = False  # Ensure CSRF token is accessible to JavaScript
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -48,6 +47,7 @@ WSGI_APPLICATION = "sportshunt.wsgi.application"
 
 CORS_ALLOWED_ORIGINS = [
     *[f"{url.strip()}" for url in FRONTEND_URL],
-    *[f"https://{url.strip()}" for url in ALLOWED_HOSTS ],
 ]
-CSRF_COOKIE_SAMESITE = 'Lax'
+# print(CORS_ALLOWED_ORIGINS)
+
+# CSRF_COOKIE_SAMESITE = 'Lax'
