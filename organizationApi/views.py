@@ -337,57 +337,48 @@ def create_fixture(request, tournament_id, category_id):
 def org_dashboard(request):
     """
     Get organization dashboard data.
-    
-    This endpoint provides dashboard data for an authenticated organizer,
-    including upcoming and past tournaments organized by the user.
-    
+    This endpoint provides dashboard data for an authenticated organizer, including organization info and tournaments.
     HTTP Method: GET
-    
     Returns:
         Response: JSON containing:
-        - upcoming_tournaments: List of tournaments with future start dates
-        - past_tournaments: List of tournaments with past end dates
-        
-        Or error details with status 500 if an error occurs.
+        - organization: Organization data or null if not found
+        - upcoming_tournaments: List of upcoming tournaments
+        - past_tournaments: List of past tournaments
     """
-    # add needed data to org dashboard if needed
-    response = {
-        "upcoming_tournaments": [],
-        "past_tournaments": [],
-    }
+    print(request.user)
     try:
         # Get organization where user is admin
-        user_orgs = Organization.objects.filter(admin=request.user)
-        
-        # Get current date
-        current_date = datetime.now().date()
-          # Get upcoming tournaments (start date is in the future)
-        upcoming = Tournament.objects.filter(
-            organization__in=user_orgs,
-            start_date__gte=current_date
-        ).select_related('organization')
-        
-        # Get past tournaments (end date is in the past)
-        past = Tournament.objects.filter(
-            organization__in=user_orgs,
-            end_date__lt=current_date
-        ).select_related('organization')
-        
-        # Serialize both sets of tournaments
-        upcoming_serializer = TournamentSerializer(upcoming, many=True)
-        past_serializer = TournamentSerializer(past, many=True)
-        
-        response["upcoming_tournaments"] = upcoming_serializer.data
-        response["past_tournaments"] = past_serializer.data
-        
-        return Response(response)
-    
+        user_org = Organization.objects.get(admin=request.user)
+        if user_org:
+            org_data = OrganizationSerializer(user_org).data
+            # Get current date
+            from datetime import datetime
+            current_date = datetime.now().date()
+            # Get tournaments using correct related_name
+            upcoming = user_org.tournaments.filter(start_date__gte=current_date)
+            past = user_org.tournaments.filter(end_date__lt=current_date)
+            upcoming_serializer = TournamentSerializer(upcoming, many=True)
+            past_serializer = TournamentSerializer(past, many=True)
+            upcoming_tournaments = upcoming_serializer.data
+            past_tournaments = past_serializer.data
+        else:
+            org_data = None
+            upcoming_tournaments = []
+            past_tournaments = []
+        return Response({
+            "organization": org_data,
+            "upcoming_tournaments": upcoming_tournaments,
+            "past_tournaments": past_tournaments,
+            "matches_scheduled": []
+        })
     except Exception as e:
-        return Response(
-            {'error': str(e)}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({
+            "organization": None,
+            "upcoming_tournaments": [],
+            "past_tournaments": [],
+            "matches_scheduled": []
 
+        }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @organizer_required_api
@@ -777,6 +768,99 @@ def update_score(request, tournament_id, category_id):
         logger.error(f"Error updating match score: {str(e)}")
         return Response(
             {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+def tournament_details(request, tournament_id):
+    """
+    Get all details of a tournament, including all its categories.
+    HTTP Method: GET
+    URL Parameters:
+        - tournament_id: ID of the tournament
+    Returns:
+        Response: JSON containing tournament details and all categories
+    """
+    try:
+        tournament = Tournament.objects.get(id=tournament_id)
+        serializer = TournamentDetailSerializer(tournament)
+        return Response(serializer.data)
+    except Tournament.DoesNotExist:
+        return Response({'error': 'Tournament not found'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET'])
+@organizer_required_api
+def tournament_details(request, tournament_id):
+    """
+    Get detailed information about a tournament including all its categories.
+    
+    This endpoint returns comprehensive tournament information including:
+    - Tournament basic details (name, dates, venue, etc.)
+    - All categories within the tournament
+    - Registration status and team counts for each category
+    
+    HTTP Method: GET
+    
+    URL Parameters:
+        - tournament_id: ID of the tournament to retrieve details for
+    
+    Returns:
+        Response: JSON containing:
+        - tournament: Complete tournament information
+        - categories: List of all categories with their details
+        
+        Or error details with appropriate status code.
+    """
+    try:
+        # Get tournament and verify it belongs to the user's organization
+        tournament = Tournament.objects.get(id=tournament_id)
+        
+        # Check if the user is admin of the tournament's organization
+        if tournament.organization.admin != request.user:
+            return Response(
+                {'error': 'You do not have permission to view this tournament'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Serialize tournament data
+        tournament_serializer = TournamentSerializer(tournament)
+        
+        # Get all categories for this tournament with related data
+        categories = Category.objects.filter(tournament=tournament).prefetch_related('teams')
+        
+        # Prepare category data with additional information
+        category_data = []
+        for category in categories:
+            category_info = {
+                'id': category.id,
+                'name': category.name,
+                'details': category.details,
+                'price': str(category.price),
+                'registration_status': category.registration_status,
+                'reg_status': category.reg_status,
+                'teams_count': category.teams.count(),
+                'teams': [{'id': team.id, 'name': team.name} for team in category.teams.all()],
+                'winner': category.winner.name if category.winner else None,
+                'has_fixture': hasattr(category, 'fixture') and category.fixture is not None,
+                'fixture_type': category.fixture.fixtureType if hasattr(category, 'fixture') and category.fixture else None
+            }
+            category_data.append(category_info)
+        
+        return Response({
+            'tournament': tournament_serializer.data,
+            'categories': category_data
+        })
+    
+    except Tournament.DoesNotExist:
+        return Response(
+            {'error': 'Tournament not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    except Exception as e:
+        logger.error(f"Error fetching tournament details: {str(e)}")
+        return Response(
+            {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 

@@ -275,3 +275,15 @@ class FixtureSerializer(serializers.Serializer):
             raise e
         except Exception as e:
             raise serializers.ValidationError({"error": str(e)})
+        
+
+class CategoryDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'details', 'price', 'registration_status']
+
+class TournamentDetailSerializer(serializers.ModelSerializer):
+    categories = CategoryDetailSerializer(source='categories', many=True, read_only=True)
+    class Meta:
+        model = Tournament
+        fields = ['id', 'name', 'details', 'organization', 'start_date', 'end_date', 'venue_address', 'venue_link', 'ph_number', 'sport', 'categories']

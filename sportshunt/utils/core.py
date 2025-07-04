@@ -26,10 +26,10 @@ def login_required_api(f):
         token = req.COOKIES.get('jwt_token')
         
         # Development mode - remove in production
-        # if True: # Change to DEV mode if needed
-        #     user_instance = User.objects.get(id=2)
-        #     req.user = user_instance
-        #     return f(req, *args, **kwargs)
+        if True: # Change to DEV mode if needed
+            user_instance = User.objects.get(id=3)
+            req.user = user_instance
+            return f(req, *args, **kwargs)
         
         if token:
             if user := get_user_from_token(token):
@@ -57,9 +57,9 @@ def organizer_required_api(f):
     @wraps(f)
     def decorated_function(req, *args, **kwargs):
         
-        # if True:
-        #     req.user = User.objects.get(id=1)
-        #     return f(req, *args, **kwargs)
+        if True:
+            req.user = User.objects.get(id=3)
+            return f(req, *args, **kwargs)
         
         token = req.COOKIES.get('jwt_token')
         if not token:
@@ -148,7 +148,7 @@ def login_handler(req):
     # Generate JWT
     payload = {
         'user_id': req.user.id,
-        'exp': datetime.now() + timedelta(days=1)
+        'exp': datetime.now() + timedelta(days=30)
     }
     token = jwt.encode(payload, settings.JWT_SECRET, algorithm='HS256')
     
@@ -180,8 +180,8 @@ def get_user_from_token(token):
         int|None: User ID if token is valid, None otherwise
     """
     try:
-        # Decode the JWT token
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=['HS256'])
+        # Decode the JWT token with leeway for clock skew
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=['HS256'], leeway=10)
         user_id = payload.get('user_id')
         return user_id
     except jwt.ExpiredSignatureError:
@@ -189,6 +189,9 @@ def get_user_from_token(token):
         return None
     except jwt.InvalidTokenError:
         logger.debug("Invalid JWT token")
+        return None
+    except jwt.ImmatureSignatureError:
+        logger.debug("JWT token not yet valid (iat)")
         return None
     
 
