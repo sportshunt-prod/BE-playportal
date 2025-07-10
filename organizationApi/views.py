@@ -404,7 +404,7 @@ def create_ko_matches(request, tournament_id, category_id):
             ],
             "no_sets": 3,  # Optional, for sports with sets
             "points_win": 15,  # Optional, for sports with sets
-            "use_complete_bracket": false  # Optional, for optimized bracket creation
+            "use_complete_bracket": true  # Optional, for optimized bracket creation
         }
     
     Returns:
@@ -476,29 +476,42 @@ def create_ko_matches(request, tournament_id, category_id):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @organizer_required_api
 def schedule_match(request, tournament_id, category_id):
     """
-    Schedule a match from a fixture's bracket matches.
+    Schedule a match from a fixture's bracket matches or get all available matches.
     
     This endpoint allows scheduling a match from either KO or RR fixtures.
     The match is moved from bracket_matches to scheduled_matches.
     Enhanced with dynamic match availability validation for optimized brackets.
     
-    HTTP Method: POST
+    HTTP Method: GET, POST
     
     URL Parameters:
         - tournament_id: ID of the tournament
         - category_id: ID of the category containing the match
     
-    Request Body:
+    GET Request:
+        Returns all available matches for scheduling
+        - For KO fixtures: Checks if base matches exist, returns error if not created
+        - Returns matches that can be scheduled (both teams assigned)
+        
+    POST Request Body:
         {
             "match_id": 1  # ID of the match to be scheduled
         }
     
     Returns:
-        Response: JSON containing:
+        GET Response: JSON containing:
+        - success: Boolean indicating if the operation was successful
+        - fixture_type: Type of fixture (KO/RR)
+        - available_matches: List of matches available for scheduling
+        - total_matches: Total number of matches in the bracket
+        - error: Error message if no matches created yet (KO only)
+        - next_step: Guidance for next action if no matches exist
+        
+        POST Response: JSON containing:
         - success: Boolean indicating if the operation was successful
         - message: Success or error message
         - match: Match details
@@ -517,6 +530,93 @@ def schedule_match(request, tournament_id, category_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Handle GET request - return all available matches
+        if request.method == 'GET':
+            if fixture.fixtureType == 'KO':
+                ko_instance = fixture.content_object
+                
+                # Check if any matches have been created at all
+                total_matches_in_fixture = ko_instance.all_matches.count()
+                
+                if total_matches_in_fixture == 0:
+                    return Response({
+                        'success': False,
+                        'fixture_type': 'KO',
+                        'error': 'Base matches need to be created first',
+                        'message': 'No matches have been created for this knockout fixture. Please create the base matches first using the create_ko_matches endpoint.',
+                        'available_matches': [],
+                        'total_matches': 0,
+                        'stage_info': 'Matches not created yet',
+                        'next_step': 'Create base matches for the knockout tournament'
+                    })
+                
+                # Get all bracket matches that can be scheduled (have both teams assigned)
+                available_matches = ko_instance.bracket_matches.filter(
+                    team1__isnull=False, 
+                    team2__isnull=False
+                ).select_related('team1', 'team2')
+                
+                matches_data = []
+                for match in available_matches:
+                    matches_data.append({
+                        'id': match.id,
+                        'team1': {
+                            'id': match.team1.id,
+                            'name': match.team1.name
+                        },
+                        'team2': {
+                            'id': match.team2.id,
+                            'name': match.team2.name
+                        },
+                        'stage': match.stage_number,
+                        'match_number': match.match_number,
+                        'can_schedule': True
+                    })
+                
+                return Response({
+                    'success': True,
+                    'fixture_type': 'KO',
+                    'available_matches': matches_data,
+                    'total_matches': ko_instance.bracket_matches.count(),
+                    'stage_info': f"Stage {matches_data[0]['stage']}" if matches_data else "No matches available"
+                })
+            
+            elif fixture.fixtureType == 'RR':
+                rr_instance = fixture.content_object
+                
+                # Get all bracket matches for Round Robin
+                available_matches = rr_instance.bracket_matches.select_related('team1', 'team2')
+                
+                matches_data = []
+                for match in available_matches:
+                    matches_data.append({
+                        'id': match.id,
+                        'team1': {
+                            'id': match.team1.id,
+                            'name': match.team1.name
+                        },
+                        'team2': {
+                            'id': match.team2.id,
+                            'name': match.team2.name
+                        },
+                        'round': getattr(match, 'round_number', 1),
+                        'can_schedule': True
+                    })
+                
+                return Response({
+                    'success': True,
+                    'fixture_type': 'RR',
+                    'available_matches': matches_data,
+                    'total_matches': rr_instance.bracket_matches.count()
+                })
+            
+            else:
+                return Response(
+                    {'error': 'Unsupported fixture type'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Handle POST request - schedule a match
         # Get match_id from request data
         match_id = int(request.data.get('match_id'))
         
@@ -792,12 +892,16 @@ def tournament_details(request, tournament_id):
 @organizer_required_api
 def tournament_details(request, tournament_id):
     """
-    Get detailed information about a tournament including all its categories.
+    Get detailed information about a tournament including all its categories, teams, and scheduled matches.
     
     This endpoint returns comprehensive tournament information including:
     - Tournament basic details (name, dates, venue, etc.)
-    - All categories within the tournament
+    - All categories within the tournament with detailed team information
+    - Complete list of all teams across all categories
+    - Scheduled matches for each category with detailed match information
+    - Tournament-wide scheduled matches summary
     - Registration status and team counts for each category
+    - Match completion statistics and tournament progress
     
     HTTP Method: GET
     
@@ -807,7 +911,27 @@ def tournament_details(request, tournament_id):
     Returns:
         Response: JSON containing:
         - tournament: Complete tournament information
-        - categories: List of all categories with their details
+        - categories: List of all categories with enhanced team details and scheduled matches
+        - teams: List of all teams across all categories
+        - scheduled_matches: List of all scheduled matches across all categories
+        - total_teams: Total number of teams in the tournament
+        - total_categories: Total number of categories in the tournament
+        - total_scheduled_matches: Total number of scheduled matches in the tournament
+        - total_completed_matches: Total number of completed matches
+        - total_pending_matches: Total number of pending matches
+        - tournament_statistics: Overall tournament progress and completion statistics
+        
+        Each category includes:
+        - scheduled_matches: Array of match details with teams, scores, and status
+        - scheduled_matches_count: Number of scheduled matches in the category
+        - completed_matches_count: Number of completed matches in the category
+        - pending_matches_count: Number of pending matches in the category
+        
+        Each match includes:
+        - Basic match info (id, teams, winner, status)
+        - Sport-specific scoring (sets won for set-based sports, simple scores)
+        - Current set scores (detailed point-by-point scores for each set in set-based sports)
+        - Match metadata (stage, match number, fixture type)
         
         Or error details with appropriate status code.
     """
@@ -828,9 +952,81 @@ def tournament_details(request, tournament_id):
         # Get all categories for this tournament with related data
         categories = Category.objects.filter(tournament=tournament).prefetch_related('teams')
         
-        # Prepare category data with additional information
+        # Prepare category data with enhanced team information
         category_data = []
+        all_teams = []  # Collect all teams across categories
+        all_scheduled_matches = []  # Collect all scheduled matches across categories
+        
         for category in categories:
+            # Get teams for this category with additional details
+            category_teams = []
+            for team in category.teams.all():
+                team_info = {
+                    'id': team.id,
+                    'name': team.name,
+                    'category_id': category.id,
+                    'category_name': category.name
+                }
+                category_teams.append(team_info)
+                all_teams.append(team_info)  # Add to overall teams list
+            
+            # Get scheduled matches for this category
+            category_scheduled_matches = []
+            if hasattr(category, 'fixture') and category.fixture:
+                scheduled_matches = category.fixture.scheduled_matches.select_related(
+                    'team1', 'team2', 'winner', 'sport'
+                ).prefetch_related('sets').all()
+                
+                for match in scheduled_matches:
+                    match_info = {
+                        'id': match.id,
+                        'team1': {
+                            'id': match.team1.id,
+                            'name': match.team1.name
+                        } if match.team1 else None,
+                        'team2': {
+                            'id': match.team2.id,
+                            'name': match.team2.name
+                        } if match.team2 else None,
+                        'winner': {
+                            'id': match.winner.id,
+                            'name': match.winner.name
+                        } if match.winner else None,
+                        'match_state': match.match_state,
+                        'match_number': match.match_number,
+                        'stage_number': match.stage_number,
+                        'sport': match.sport.name,
+                        'category_id': category.id,
+                        'category_name': category.name,
+                        'fixture_type': category.fixture.fixtureType,
+                        # Add scoring information based on sport type
+                        'team1_sets_won': match.team1_sets_won if match.sport.scoring_type == 'sets' else None,
+                        'team2_sets_won': match.team2_sets_won if match.sport.scoring_type == 'sets' else None,
+                        'team1_simple_score': match.score_system.team1_score if match.sport.scoring_type == 'simple' and match.score_system else None,
+                        'team2_simple_score': match.score_system.team2_score if match.sport.scoring_type == 'simple' and match.score_system else None
+                    }
+                    
+                    # Add current set scores for set-based sports
+                    if match.sport.scoring_type == 'sets':
+                        set_scores = []
+                        for set_score in match.sets.all().order_by('set_number'):
+                            set_info = {
+                                'set_number': set_score.set_number,
+                                'team1_points': set_score.team1_points,
+                                'team2_points': set_score.team2_points,
+                                'set_winner': {
+                                    'id': set_score.winner.id,
+                                    'name': set_score.winner.name
+                                } if set_score.winner else None,
+                                'set_completed': set_score.set_state
+                            }
+                            set_scores.append(set_info)
+                        match_info['current_set_scores'] = set_scores
+                    else:
+                        match_info['current_set_scores'] = None
+                    category_scheduled_matches.append(match_info)
+                    all_scheduled_matches.append(match_info)  # Add to overall matches list
+            
             category_info = {
                 'id': category.id,
                 'name': category.name,
@@ -839,16 +1035,30 @@ def tournament_details(request, tournament_id):
                 'registration_status': category.registration_status,
                 'reg_status': category.reg_status,
                 'teams_count': category.teams.count(),
-                'teams': [{'id': team.id, 'name': team.name} for team in category.teams.all()],
-                'winner': category.winner.name if category.winner else None,
+                'teams': category_teams,
+                'winner': {
+                    'id': category.winner.id,
+                    'name': category.winner.name
+                } if category.winner else None,
                 'has_fixture': hasattr(category, 'fixture') and category.fixture is not None,
-                'fixture_type': category.fixture.fixtureType if hasattr(category, 'fixture') and category.fixture else None
+                'fixture_type': category.fixture.fixtureType if hasattr(category, 'fixture') and category.fixture else None,
+                'scheduled_matches': category_scheduled_matches,
+                'scheduled_matches_count': len(category_scheduled_matches),
+                'completed_matches_count': len([m for m in category_scheduled_matches if m['match_state']]),
+                'pending_matches_count': len([m for m in category_scheduled_matches if not m['match_state']])
             }
             category_data.append(category_info)
         
         return Response({
             'tournament': tournament_serializer.data,
-            'categories': category_data
+            'categories': category_data,
+            'teams': all_teams,
+            'total_teams': len(all_teams),
+            'total_categories': len(category_data),
+            'scheduled_matches': all_scheduled_matches,
+            'total_scheduled_matches': len(all_scheduled_matches),
+            'total_completed_matches': len([m for m in all_scheduled_matches if m['match_state']]),
+            'total_pending_matches': len([m for m in all_scheduled_matches if not m['match_state']]),
         })
     
     except Tournament.DoesNotExist:
