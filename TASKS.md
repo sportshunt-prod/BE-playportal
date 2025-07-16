@@ -38,6 +38,55 @@ Fix CORS errors preventing frontend-backend communication in the SportsHunt appl
    - Provides stage/round information for better context
 
 3. **Enhanced Error Handling for KO Fixtures** ✅
+   - Added validation for fixture existence
+   - Clear error messages when matches haven't been created
+   - Guidance for next steps in tournament setup
+
+## Latest Update: ✅ COMPLETED (July 13, 2025)
+
+### Create Fixture Details API Endpoint
+
+**Task:** Create API endpoint to get fixture details for building KO diagrams or RR tables
+
+**Implementation Completed:**
+1. **New API Endpoint Created** ✅
+   - URL: `tournament/<int:tournament_id>/category/<int:category_id>/fixture/details/`
+   - Method: GET
+   - View Function: `get_fixture_details`
+
+2. **KO Fixture Data Builder** ✅
+   - Uses actual Match records with stage_number and match_number
+   - Groups matches by stage for proper tournament visualization
+   - Generates appropriate stage names (Finals, Semi Finals, Quarter Finals, etc.)
+   - Distinguishes between "BYE" (first round) and "TBD" (later rounds)
+
+3. **RR Fixture Data Builder** ✅
+   - Extracts all teams from category
+   - Gets all match results (completed and pending)
+   - Formats data for round robin table visualization
+
+4. **Scoring Integration** ✅
+   - **Simple Scoring**: Direct team1_score/team2_score from SimpleScore model
+   - **Set-based Scoring**: Shows sets won + current set points
+   - **Live Data**: Real-time scores from actual score records
+
+5. **Response Format** ✅
+   - KO fixtures return stages array with matches
+   - RR fixtures return teams array and results array
+   - Includes sport_type for frontend handling
+   - Proper error handling and validation
+
+6. **URL Pattern Added** ✅
+   - Added route in organizationApi/urls.py
+   - Follows existing URL structure and naming conventions
+
+**Key Features:**
+- Match-based data extraction (no JSON dependency)
+- Live scoring integration
+- Dynamic stage naming
+- Permission validation
+- Comprehensive error handling
+- Support for both scoring types (simple/sets)
    - Added check for when no base matches have been created yet
    - Returns informative error message with guidance
    - Prevents confusion when fixture exists but no matches created

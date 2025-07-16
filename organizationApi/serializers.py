@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from organizationApi.models import Organization
+from organizationApi.models import Organization, Sport
 from datetime import datetime
 import re
 from organizationApi.models import *
@@ -282,8 +282,16 @@ class CategoryDetailSerializer(serializers.ModelSerializer):
         model = Category
         fields = ['id', 'name', 'details', 'price', 'registration_status']
 
+
+class SportDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Sport
+        fields = ['id', 'name', 'scoring_type']
+
+
 class TournamentDetailSerializer(serializers.ModelSerializer):
-    categories = CategoryDetailSerializer(source='categories', many=True, read_only=True)
+    categories = CategoryDetailSerializer(many=True, read_only=True)
+    sport = SportDetailSerializer(read_only=True)
     class Meta:
         model = Tournament
         fields = ['id', 'name', 'details', 'organization', 'start_date', 'end_date', 'venue_address', 'venue_link', 'ph_number', 'sport', 'categories']

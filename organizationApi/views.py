@@ -872,23 +872,6 @@ def update_score(request, tournament_id, category_id):
         )
 
 @api_view(['GET'])
-def tournament_details(request, tournament_id):
-    """
-    Get all details of a tournament, including all its categories.
-    HTTP Method: GET
-    URL Parameters:
-        - tournament_id: ID of the tournament
-    Returns:
-        Response: JSON containing tournament details and all categories
-    """
-    try:
-        tournament = Tournament.objects.get(id=tournament_id)
-        serializer = TournamentDetailSerializer(tournament)
-        return Response(serializer.data)
-    except Tournament.DoesNotExist:
-        return Response({'error': 'Tournament not found'}, status=status.HTTP_404_NOT_FOUND)
-
-@api_view(['GET'])
 @organizer_required_api
 def tournament_details(request, tournament_id):
     """
@@ -946,8 +929,8 @@ def tournament_details(request, tournament_id):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Serialize tournament data
-        tournament_serializer = TournamentSerializer(tournament)
+        # Serialize tournament data with sport details
+        tournament_serializer = TournamentDetailSerializer(tournament)
         
         # Get all categories for this tournament with related data
         categories = Category.objects.filter(tournament=tournament).prefetch_related('teams')
@@ -1047,6 +1030,14 @@ def tournament_details(request, tournament_id):
                 'completed_matches_count': len([m for m in category_scheduled_matches if m['match_state']]),
                 'pending_matches_count': len([m for m in category_scheduled_matches if not m['match_state']])
             }
+            
+            # Add set-based sport specific information
+            if tournament.sport.scoring_type == 'sets':
+                category_info.update({
+                    'max_sets': category.max_sets,
+                    'required_points': category.required_points
+                })
+            
             category_data.append(category_info)
         
         return Response({
@@ -1073,5 +1064,349 @@ def tournament_details(request, tournament_id):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['GET'])
+@organizer_required_api
+def get_fixture_details(request, tournament_id, category_id):
+    """
+    Get fixture details for KO diagram or RR table visualization.
+    
+    This endpoint returns structured data for building tournament visualizations
+    based on actual Match records with stage_number and match_number,
+    including live scoring data from SetScore/SimpleScore models.
+    
+    HTTP Method: GET
+    
+    URL Parameters:
+        - tournament_id: ID of the tournament
+        - category_id: ID of the category containing the fixture
+    
+    Returns:
+        For KO fixtures:
+        {
+            "fixture_type": "KO",
+            "sport_type": "simple" | "sets",
+            "stages": [
+                {
+                    "stageIndex": 4,
+                    "name": "First Round",
+                    "matches": [
+                        {
+                            "id": "s4m1",
+                            "team1": "Team A",
+                            "team2": "Team B", 
+                            "winner": "Team A",
+                            "team1Score": 21,
+                            "team2Score": 18
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        For RR fixtures:
+        {
+            "fixture_type": "RR",
+            "sport_type": "simple" | "sets", 
+            "teams": ["Team A", "Team B", ...],
+            "results": [
+                {
+                    "team1": "Team A",
+                    "team2": "Team B",
+                    "score1": 21,
+                    "score2": 18
+                }
+            ]
+        }
+        
+        Or error details with appropriate status code.
+    """
+    try:
+        # Validate and get category
+        category = Category.objects.get(id=category_id, tournament_id=tournament_id)
+        
+        # Check if the user is admin of the tournament's organization
+        if category.tournament.organization.admin != request.user:
+            return Response(
+                {'error': 'You do not have permission to view this fixture'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if not hasattr(category, 'fixture') or not category.fixture:
+            return Response(
+                {'error': 'Fixture not created yet'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        fixture = category.fixture
+        
+        if fixture.fixtureType == 'KO':
+            return Response(build_ko_fixture_data(category, fixture))
+        elif fixture.fixtureType == 'RR':
+            return Response(build_rr_fixture_data(category, fixture))
+        else:
+            return Response(
+                {'error': 'Unsupported fixture type'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+    except Category.DoesNotExist:
+        return Response(
+            {'error': 'Category not found or does not belong to the specified tournament'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error fetching fixture details: {str(e)}")
+        return Response(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+def build_ko_fixture_data(category, fixture):
+    """
+    Build KO fixture data from Match records organized by stage_number and match_number.
+    
+    Args:
+        category: Category instance
+        fixture: Fixture instance
+        
+    Returns:
+        dict: Structured KO fixture data for frontend visualization
+    """
+    ko_instance = fixture.content_object
+    sport = category.tournament.sport
+    
+    # Get all matches with proper relationships
+    all_matches = ko_instance.all_matches.select_related(
+        'team1', 'team2', 'winner'
+    ).prefetch_related('sets').all()
+    
+    if not all_matches.exists():
+        return {
+            "fixture_type": "KO",
+            "sport_type": sport.scoring_type,
+            "stages": [],
+            "message": "No matches created yet"
+        }
+    
+    # Group matches by stage_number
+    stages_dict = {}
+    for match in all_matches:
+        stage_num = match.stage_number
+        if stage_num not in stages_dict:
+            stages_dict[stage_num] = []
+        stages_dict[stage_num].append(match)
+    
+    # Build stages array (highest stage number first - early rounds)
+    stages = []
+    stage_numbers = sorted(stages_dict.keys(), reverse=True)
+    
+    for i, stage_num in enumerate(stage_numbers):
+        stage_matches = sorted(stages_dict[stage_num], key=lambda x: x.match_number or 0)
+        
+        # Generate proper stage name
+        stage_name = generate_ko_stage_name(i, len(stage_numbers), len(stage_matches))
+        
+        matches_data = []
+        for match in stage_matches:
+            # Determine if this is a first round (highest stage number) or later round
+            is_first_round = stage_num == max(stage_numbers)
+            
+            match_data = {
+                "id": f"s{stage_num}m{match.match_number or 0}",
+                "team1": match.team1.name if match.team1 else ("BYE" if is_first_round else "TBD"),
+                "team2": match.team2.name if match.team2 else ("BYE" if is_first_round else "TBD"),
+                "winner": match.winner.name if match.winner else None,
+                "match_completed": match.match_state
+            }
+            
+            # Add scoring based on sport type
+            if sport.scoring_type == 'simple':
+                scores = get_simple_scores(match)
+                match_data.update(scores)
+            else:  # sets
+                scores = get_set_scores(match)
+                match_data.update(scores)
+                
+            matches_data.append(match_data)
+        
+        stages.append({
+            "stageIndex": stage_num,
+            "name": stage_name,
+            "matches": matches_data
+        })
+    
+    return {
+        "fixture_type": "KO",
+        "sport_type": sport.scoring_type,
+        "stages": stages
+    }
+
+
+def build_rr_fixture_data(category, fixture):
+    """
+    Build RR fixture data from all matches and team statistics.
+    
+    Args:
+        category: Category instance
+        fixture: Fixture instance
+        
+    Returns:
+        dict: Structured RR fixture data for frontend visualization
+    """
+    rr_instance = fixture.content_object
+    sport = category.tournament.sport
+    
+    # Get all teams
+    teams = [team.name for team in category.teams.all()]
+    
+    # Get all matches (both scheduled and completed)
+    all_matches = rr_instance.all_matches.select_related(
+        'team1', 'team2', 'winner'
+    ).prefetch_related('sets').all()
+    
+    results = []
+    for match in all_matches:
+        if match.team1 and match.team2:  # Skip BYE matches if any
+            result_data = {
+                "team1": match.team1.name,
+                "team2": match.team2.name,
+                "match_completed": match.match_state
+            }
+            
+            # Add scoring based on sport type and match completion
+            if match.match_state:  # Completed match
+                if sport.scoring_type == 'simple':
+                    scores = get_simple_scores(match)
+                    result_data.update({
+                        "score1": scores["team1Score"],
+                        "score2": scores["team2Score"]
+                    })
+                else:  # sets
+                    result_data.update({
+                        "score1": match.team1_sets_won,
+                        "score2": match.team2_sets_won
+                    })
+            else:  # Pending match
+                result_data.update({
+                    "score1": None,
+                    "score2": None
+                })
+                
+            results.append(result_data)
+    
+    return {
+        "fixture_type": "RR",
+        "sport_type": sport.scoring_type,
+        "teams": teams,
+        "results": results
+    }
+
+
+def generate_ko_stage_name(stage_index, total_stages, match_count):
+    """
+    Generate appropriate stage name for knockout tournaments.
+    
+    Args:
+        stage_index: Index in the stages array (0 is first/earliest round)
+        total_stages: Total number of stages in tournament
+        match_count: Number of matches in this stage
+        
+    Returns:
+        str: Human-readable stage name
+    """
+    # Last stage (finals)
+    if stage_index == total_stages - 1:
+        return "Finals"
+    # Second to last stage (semi-finals)
+    elif stage_index == total_stages - 2 and match_count == 2:
+        return "Semi Finals"
+    # Third to last stage (quarter-finals)
+    elif stage_index == total_stages - 3 and match_count == 4:
+        return "Quarter Finals"
+    # Early rounds
+    else:
+        # Use ordinal numbering for early rounds
+        round_number = stage_index + 1
+        if round_number == 1:
+            return "First Round"
+        elif round_number == 2:
+            return "Second Round"
+        elif round_number == 3:
+            return "Third Round"
+        else:
+            return f"Round {round_number}"
+
+
+def get_simple_scores(match):
+    """
+    Get simple scoring data for a match.
+    
+    Args:
+        match: Match instance
+        
+    Returns:
+        dict: Team scores or null if no score system exists
+    """
+    # If match hasn't started or teams aren't determined, return zero scores
+    if not match.team1 or not match.team2:
+        return {
+            "team1Score": 0,
+            "team2Score": 0
+        }
+    
+    try:
+        if hasattr(match, 'score_system') and match.score_system:
+            return {
+                "team1Score": match.score_system.team1_score,
+                "team2Score": match.score_system.team2_score
+            }
+    except:
+        pass
+    
+    return {
+        "team1Score": 0,
+        "team2Score": 0
+    }
+
+
+def get_set_scores(match):
+    """
+    Get set-based scoring data for a match.
+    
+    Args:
+        match: Match instance
+        
+    Returns:
+        dict: Sets won by each team plus current set scores
+    """
+    # If teams aren't determined (TBD), return zero scores
+    if not match.team1 or not match.team2:
+        return {
+            "team1Score": 0,  # Sets won
+            "team2Score": 0,  # Sets won  
+            "currentSetScore": {
+                "team1Points": 0,
+                "team2Points": 0
+            }
+        }
+    
+    # Get total sets won by each team
+    team1_sets = match.team1_sets_won
+    team2_sets = match.team2_sets_won
+    
+    # Get current set in progress scores
+    current_set = match.current_set
+    current_set_scores = {
+        "team1Points": current_set.team1_points if current_set else 0,
+        "team2Points": current_set.team2_points if current_set else 0
+    }
+    
+    return {
+        "team1Score": team1_sets,  # Sets won
+        "team2Score": team2_sets,  # Sets won  
+        "currentSetScore": current_set_scores  # Points in current set
+    }
 
 

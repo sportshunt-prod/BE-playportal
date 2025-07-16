@@ -14,6 +14,7 @@ urlpatterns = [
     path('tournament/<int:tournament_id>/category/<int:category_id>/create_ko_matches/', views.create_ko_matches, name='create-ko-match'),
     path('tournament/<int:tournament_id>/category/<int:category_id>/schedule_match/', views.schedule_match, name='schedule-match'),
     path('tournament/<int:tournament_id>/category/<int:category_id>/update_score/', views.update_score, name='update-score'),
+    path('tournament/<int:tournament_id>/category/<int:category_id>/fixture/details/', views.get_fixture_details, name='fixture-details'),
 ]
 
 app_name = 'org'
