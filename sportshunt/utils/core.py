@@ -26,10 +26,10 @@ def login_required_api(f):
         token = req.COOKIES.get('jwt_token')
         
         # Development mode - remove in production
-        if True: # Change to DEV mode if needed
-            user_instance = User.objects.get(id=3)
-            req.user = user_instance
-            return f(req, *args, **kwargs)
+        # if True: # Change to DEV mode if needed
+        #     user_instance = User.objects.get(id=3)
+        #     req.user = user_instance
+        #     return f(req, *args, **kwargs)
         
         if token:
             if user := get_user_from_token(token):
@@ -57,9 +57,9 @@ def organizer_required_api(f):
     @wraps(f)
     def decorated_function(req, *args, **kwargs):
         
-        if True:
-            req.user = User.objects.get(id=3)
-            return f(req, *args, **kwargs)
+        # if True:
+        #     req.user = User.objects.get(id=3)
+        #     return f(req, *args, **kwargs)
         
         token = req.COOKIES.get('jwt_token')
         if not token:
@@ -67,7 +67,7 @@ def organizer_required_api(f):
             return Response(
                 {"error": "Authentication token missing"},
                 status=status.HTTP_401_UNAUTHORIZED
-            )
+            )       
             
         user_id = get_user_from_token(token)
         if not user_id:
