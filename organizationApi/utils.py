@@ -363,6 +363,7 @@ class ScoreManager:
         self.team_id = None if self.data.get('action') == 'finish' else int(self.data.get('team_id', 0))
         self.fixture = category_instance.fixture
         self.sport = match_instance.sport
+        self.court_advancement = None  # NEW: Store court advancement information
         
     def validate(self):
         """Validate match and request data."""
@@ -427,10 +428,13 @@ class ScoreManager:
         
         # Check set completion
         if self.check_set_completion(current_set):
-            return {
+            response = {
                 'success': True, 
                 'message': 'Set completed, proceeding to next set or match completion'
             }
+            # Add court advancement information if match was completed
+            self._add_court_advancement_to_response(response)
+            return response
             
         return {
             'success': True, 
@@ -492,6 +496,27 @@ class ScoreManager:
             
         return False
     
+    def _add_court_advancement_to_response(self, response):
+        """Add court advancement information to response if available."""
+        if self.court_advancement:
+            advancement = self.court_advancement['advancement_result']
+            response['court_advancement'] = {
+                'court_id': self.court_advancement['court_id'],
+                'court_name': self.court_advancement['court_name'],
+                'advanced': advancement.get('advanced', False),
+                'previous_match_id': advancement.get('previous_match_id'),
+                'new_current_match': advancement.get('new_current_match'),
+                'court_available': advancement.get('court_available', False),
+                'remaining_queue_count': advancement.get('remaining_queue_count', 0)
+            }
+            
+            # Enhance message with court information
+            if advancement.get('new_current_match'):
+                next_match = advancement['new_current_match']
+                response['message'] += f" Court {self.court_advancement['court_name']} advanced to next match: {next_match['team1']} vs {next_match['team2']}"
+            elif advancement.get('court_available'):
+                response['message'] += f" Court {self.court_advancement['court_name']} is now available"
+    
     def finish_match(self, simple_score):
         """Complete a simple scoring match."""
         if self.match.match_state:
@@ -507,16 +532,54 @@ class ScoreManager:
         self.match.save()
         self.handle_match_completion()
         
-        return {'success': True, 'message': 'Match completed successfully'}
+        # Enhanced response with court advancement information
+        response = {'success': True, 'message': 'Match completed successfully'}
+        self._add_court_advancement_to_response(response)
+        return response
     
     def handle_match_completion(self):
-        """Handle post-match completion tasks."""
+        """Handle post-match completion tasks including court advancement."""
         self.fixture.scheduled_matches.remove(self.match)
+        
+        # NEW: Auto-advance court if this match was assigned to a court
+        self.advance_court_if_assigned()
         
         if self.fixture.fixtureType == 'KO':
             self.handle_ko_completion()
         elif self.fixture.fixtureType == 'RR':
             self.handle_rr_completion()
+    
+    def advance_court_if_assigned(self):
+        """Automatically advance court to next match if this match was current."""
+        try:
+            # Check if this match was assigned to a court as the current match
+            from .models import Court
+            court = Court.objects.filter(current_match=self.match).first()
+            
+            if court:
+                logger.info(f"Match {self.match.id} completed on {court.name}, advancing to next match")
+                advancement_result = court.advance_to_next_match()
+                
+                # Store advancement info for response enhancement
+                self.court_advancement = {
+                    'court_id': court.id,
+                    'court_name': court.name,
+                    'advancement_result': advancement_result
+                }
+                
+                # Log the advancement details
+                if advancement_result.get('new_current_match'):
+                    next_match = advancement_result['new_current_match']
+                    logger.info(f"Court {court.name} advanced to match {next_match['id']}: "
+                              f"{next_match['team1']} vs {next_match['team2']}")
+                elif advancement_result.get('court_available'):
+                    logger.info(f"Court {court.name} is now available (no more queued matches)")
+                    
+        except Exception as e:
+            # Don't fail match completion if court advancement fails
+            logger.error(f"Error advancing court after match completion: {str(e)}")
+            self.court_advancement = None
+            # Continue with normal match completion flow
     
     def handle_ko_completion(self):
         """Handle knockout tournament progression with immediate advancement."""

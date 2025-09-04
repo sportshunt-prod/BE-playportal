@@ -84,36 +84,67 @@ This section details the step-by-step process an organizer follows to create and
     *   **Endpoint:** `POST /org/tournament/create/`
     *   **Details:** They provide tournament details like name, dates, venue, and the sport.
 
-4.  **Define Categories**
+4.  **✅ Set Up Courts (NEW)**
+    *   **Action:** The organizer creates courts for the tournament to manage match scheduling and progression.
+    *   **Endpoint:** `POST /org/tournament/<tournament_id>/new_courts/`
+    *   **Details:** They provide court names (e.g., "Court 1", "Center Court").
+    *   **Features:** Courts support automatic match queuing and progression.
+
+5.  **Define Categories**
     *   **Action:** The organizer adds one or more categories to the tournament (e.g., "U-19 Men's Singles", "Open Women's Doubles").
     *   **Endpoint:** `POST /org/tournament/<tournament_id>/category/create/`
 
-5.  **Manage Registration**
+6.  **Manage Registration**
     *   **Action:** The organizer opens registration for a specific category.
     *   **Endpoint:** `POST /org/tournament/<t_id>/category/<c_id>/toggle-registration/`
 
-6.  **Register Teams**
+7.  **Register Teams**
     *   **Action:** The organizer manually adds teams to the category.
     *   **Endpoint:** `POST /org/tournament/<t_id>/category/<c_id>/team/create/`
 
-7.  **Create a Fixture**
+8.  **Create a Fixture**
     *   **Action:** After closing registration (using the same `toggle-registration` endpoint), the organizer creates a fixture for the category.
     *   **Endpoint:** `POST /org/tournament/<t_id>/category/<c_id>/fixture/create/`
     *   **Details:** The organizer specifies the `fixtureType`, such as "KO" (Knockout) or "RR" (Round Robin).
 
-8.  **Generate & Schedule Matches**
+9.  **Generate & Schedule Matches with Courts ✅ ENHANCED**
     *   **Action (for KO):** The organizer generates the initial bracket of matches.
     *   **Endpoint:** `POST /org/tournament/<t_id>/category/<c_id>/create_ko_matches/`
-    *   **Action:** The organizer schedules the matches that are ready to be played.
+    *   **Action:** The organizer schedules matches with optional court assignment.
     *   **Endpoint:** `POST /org/tournament/<t_id>/category/<c_id>/schedule_match/`
+    *   **NEW:** `{"match_id": 1, "court_id": 2}` - Courts automatically manage queues
+    *   **Behavior:** If court is available → assign as current match, if occupied → add to queue
 
-9.  **Manage Live Tournament**
+10. **Manage Live Tournament with Automatic Court Progression ✅ ENHANCED**
     *   **Action:** As matches are played, the organizer updates the scores.
     *   **Endpoint:** `POST /org/tournament/<t_id>/category/<c_id>/update_score/`
-    *   **System Behavior:** When a match finishes, the system automatically progresses the winner to the next round in a knockout fixture, making the next match available for scheduling.
+    *   **NEW System Behavior:** When a match finishes:
+        - System automatically progresses the winner to the next round
+        - ✅ **Courts automatically advance** to the next queued match
+        - Next match becomes available for scheduling
+        - Court status updates in real-time
 
-10. **Monitor Progress**
-    *   **Action:** Anyone can view the live state of the tournament bracket or standings.
-    *   **Endpoint:** `GET /org/tournament/<t_id>/category/<c_id>/fixture/details/`
+11. **Monitor Courts & Tournament Progress ✅ ENHANCED**
+    *   **Action:** View live tournament state and court utilization.
+    *   **Endpoints:** 
+        - `GET /org/tournament/<t_id>/category/<c_id>/fixture/details/` - Tournament bracket
+        - ✅ `GET /org/tournament/<t_id>/courts/` - **NEW** Court status overview
+        - ✅ `GET /org/courts/<court_id>/` - **NEW** Detailed court queue information
 
-This flow continues until the final match is played and a tournament winner is determined.
+## ✅ Court Management Workflow (NEW)
+
+**Automatic Court Management System:**
+
+1. **Court Setup** → Organizer creates courts for tournament
+2. **Match Assignment** → Matches assigned to courts during scheduling
+3. **Auto-Queue Management** → System handles current vs upcoming match logic
+4. **Match Completion** → Score updates trigger automatic court advancement
+5. **Real-time Status** → Live court availability and queue monitoring
+
+**Key Benefits:**
+- **Automated Workflow**: No manual intervention needed for court progression
+- **Queue Management**: FIFO processing with transparent position tracking  
+- **Real-time Updates**: Immediate status changes on match completion
+- **Scalable Design**: Supports multiple courts and complex tournament structures
+
+This flow continues until the final match is played and a tournament winner is determined, with courts automatically managing match progression throughout the tournament.

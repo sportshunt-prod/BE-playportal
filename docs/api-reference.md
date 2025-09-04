@@ -13,14 +13,53 @@ This document describes the primary API endpoints for the SportsHunt backend. Us
 
 Authentication uses Auth0; see `authentication.md` for details on obtaining tokens and using them against endpoints.
 
-## Common Endpoints
+## Core API Endpoints
 
-- /api/organizations/ — Organization list and create
-- /api/organizations/{id}/ — Organization detail
-- /api/tournaments/ — Tournament list and create
-- /api/tournaments/{id}/ — Tournament detail
+### User Management
+- `/api/auth/` — User authentication endpoints
+- `/api/user/` — User profile management
 
-(For the full list and example requests, import the Postman collection above.)
+### Organization API Endpoints
+
+#### Organization Management
+- `/api/org/org_auth/` — Validate organization user authentication
+- `/api/org/create/` — Create organization
+- `/api/org/dashboard/` — Organization dashboard data
+
+#### Tournament Management
+- `/api/org/tournament/create/` — Create tournament
+- `/api/org/tournament/{tournament_id}/` — Tournament details
+
+#### Category Management
+- `/api/org/tournament/{tournament_id}/category/create/` — Create category
+- `/api/org/tournament/{tournament_id}/category/{category_id}/toggle-registration/` — Toggle registration
+- `/api/org/tournament/{tournament_id}/category/{category_id}/team/create/` — Register team
+
+#### Fixture & Match Management
+- `/api/org/tournament/{tournament_id}/category/{category_id}/fixture/create/` — Create fixture
+- `/api/org/tournament/{tournament_id}/category/{category_id}/create_ko_matches/` — Create knockout matches
+- `/api/org/tournament/{tournament_id}/category/{category_id}/schedule_match/` — Schedule match (with optional court assignment)
+- `/api/org/tournament/{tournament_id}/category/{category_id}/update_score/` — Update match score (with automatic court advancement)
+- `/api/org/tournament/{tournament_id}/category/{category_id}/fixture/details/` — Get fixture details
+
+#### Court Management
+- `/api/org/tournament/{tournament_id}/courts/` — List tournament courts
+- `/api/org/tournament/{tournament_id}/new_courts/` — Create court
+- `/api/org/courts/{court_id}/` — Court details, update, delete
+
+## Enhanced Features
+
+### Court Assignment & Auto-Queue Management
+- **Match Scheduling with Courts**: Assign matches to courts during scheduling
+- **Automatic Queue Management**: Courts automatically manage FIFO match queues
+- **Auto-Advancement**: Courts automatically advance to next match on completion
+- **Real-time Status**: Get live court status and queue information
+
+### Comprehensive Tournament Management
+- **Multi-format Support**: Knockout (KO) and Round Robin (RR) fixtures
+- **Set-based & Simple Scoring**: Support for different sport scoring systems
+- **Live Score Updates**: Real-time score tracking with match progression
+- **Tournament State Management**: Track completion status and winners
 
 ## Missing Examples / Fixtures
 

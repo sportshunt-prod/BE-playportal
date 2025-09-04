@@ -5,7 +5,7 @@ from sportshunt.utils.authentication import get_auth_response
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import *
-from .models import Organization, Category, Team, Match, SetScore, SimpleScore
+from .models import Organization, Category, Team, Match, SetScore, SimpleScore, Court, Tournament
 from coreApi.models import User
 from django.db import transaction
 from .utils import KoGen, ScoreManager
@@ -482,9 +482,9 @@ def schedule_match(request, tournament_id, category_id):
     """
     Schedule a match from a fixture's bracket matches or get all available matches.
     
-    This endpoint allows scheduling a match from either KO or RR fixtures.
+    This endpoint allows scheduling a match from either KO or RR fixtures with optional court assignment.
     The match is moved from bracket_matches to scheduled_matches.
-    Enhanced with dynamic match availability validation for optimized brackets.
+    Enhanced with court assignment and auto-queue functionality.
     
     HTTP Method: GET, POST
     
@@ -499,8 +499,14 @@ def schedule_match(request, tournament_id, category_id):
         
     POST Request Body:
         {
-            "match_id": 1  # ID of the match to be scheduled
+            "match_id": 1,     # ID of the match to be scheduled
+            "court_id": 2      # (Optional) ID of the court to assign the match to
         }
+        
+    Auto-Queue Logic (when court_id provided):
+        - If court.current_match is NULL → assign as current match
+        - If court.current_match exists → add to court.upcoming_matches queue
+        - Court automatically manages the queue order
     
     Returns:
         GET Response: JSON containing:
@@ -515,6 +521,9 @@ def schedule_match(request, tournament_id, category_id):
         - success: Boolean indicating if the operation was successful
         - message: Success or error message
         - match: Match details
+        - court: Court details (if court_id provided)
+        - position: "current" or "queued" (if court_id provided)
+        - queue_position: Position in queue if queued (if court_id provided)
         - next_available_matches: Number of matches now available for scheduling
         
         Or error details with appropriate status code.
@@ -617,8 +626,23 @@ def schedule_match(request, tournament_id, category_id):
                 )
 
         # Handle POST request - schedule a match
-        # Get match_id from request data
+        # Get match_id and court_id from request data
         match_id = int(request.data.get('match_id'))
+        court_id = request.data.get('court_id')  # NEW: Court assignment parameter
+        
+        # NEW: Court assignment and validation
+        court_instance = None
+        court_position = None
+        queue_position = None
+        
+        if court_id:
+            try:
+                court_instance = Court.objects.get(id=court_id, tournament_id=tournament_id)
+            except Court.DoesNotExist:
+                return Response(
+                    {'error': 'Court not found or does not belong to this tournament'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
         
         # Handle KO fixture type
         if category_instance.fixture.fixtureType == 'KO':
@@ -642,6 +666,22 @@ def schedule_match(request, tournament_id, category_id):
                             status=status.HTTP_400_BAD_REQUEST
                         )
                     
+                    # NEW: Auto-queue logic for court assignment
+                    if court_instance:
+                        if court_instance.current_match is None:
+                            # Court is available - assign as current match
+                            court_instance.current_match = match_instance
+                            court_position = "current"
+                            queue_position = None
+                        else:
+                            # Court is occupied - add to upcoming queue
+                            court_instance.upcoming_matches.add(match_instance)
+                            court_position = "queued"
+                            queue_position = court_instance.upcoming_matches.count()
+                        
+                        court_instance.save()
+                        logger.info(f"Match {match_id} assigned to court {court_instance.name} as {court_position}")
+                    
                     # Schedule the match
                     fixture.scheduled_matches.add(match_instance)
                     ko_instance.bracket_matches.remove(match_instance)
@@ -649,7 +689,8 @@ def schedule_match(request, tournament_id, category_id):
                     # Save changes
                     fixture.save()
                     ko_instance.save()
-                      # Calculate remaining available matches
+                    
+                    # Calculate remaining available matches
                     remaining_matches = ko_instance.bracket_matches.filter(
                         team1__isnull=False, 
                         team2__isnull=False
@@ -657,7 +698,8 @@ def schedule_match(request, tournament_id, category_id):
                     
                     logger.info(f"Match {match_id} scheduled: {match_instance.team1.name} vs {match_instance.team2.name}, {remaining_matches} matches remaining")
                     
-                return Response({
+                # Enhanced response with court information
+                response_data = {
                     'success': True,
                     'message': 'Match scheduled successfully',
                     'match': {
@@ -668,14 +710,30 @@ def schedule_match(request, tournament_id, category_id):
                         'match_number': match_instance.match_number
                     },
                     'next_available_matches': remaining_matches
-                })
+                }
+                
+                # NEW: Add court information to response if court was assigned
+                if court_instance:
+                    response_data['court'] = {
+                        'id': court_instance.id,
+                        'name': court_instance.name
+                    }
+                    response_data['position'] = court_position
+                    response_data['queue_position'] = queue_position
+                    
+                    if court_position == "current":
+                        response_data['message'] = f"Match scheduled successfully and assigned to {court_instance.name}"
+                    else:
+                        response_data['message'] = f"Match scheduled and queued for {court_instance.name} (position {queue_position})"
+                
+                return Response(response_data)
             
             except Match.DoesNotExist:
                 return Response(
                     {'error': 'Match not found'}, 
                     status=status.HTTP_404_NOT_FOUND
                 )
-          # Handle RR fixture type
+        # Handle RR fixture type
         elif category_instance.fixture.fixtureType == 'RR':
             rr_instance = fixture.content_object
             bracket_matches = rr_instance.bracket_matches.values_list('id', flat=True)
@@ -690,6 +748,22 @@ def schedule_match(request, tournament_id, category_id):
                 with transaction.atomic():
                     match_instance = Match.objects.get(id=match_id)
                     
+                    # NEW: Auto-queue logic for court assignment (same as KO)
+                    if court_instance:
+                        if court_instance.current_match is None:
+                            # Court is available - assign as current match
+                            court_instance.current_match = match_instance
+                            court_position = "current"
+                            queue_position = None
+                        else:
+                            # Court is occupied - add to upcoming queue
+                            court_instance.upcoming_matches.add(match_instance)
+                            court_position = "queued"
+                            queue_position = court_instance.upcoming_matches.count()
+                        
+                        court_instance.save()
+                        logger.info(f"RR Match {match_id} assigned to court {court_instance.name} as {court_position}")
+                    
                     # Schedule the match
                     fixture.scheduled_matches.add(match_instance)
                     rr_instance.bracket_matches.remove(match_instance)
@@ -701,7 +775,8 @@ def schedule_match(request, tournament_id, category_id):
                     # Calculate remaining matches for consistency
                     remaining_matches = rr_instance.bracket_matches.count()
                     
-                return Response({
+                # Enhanced response with court information
+                response_data = {
                     'success': True,
                     'message': 'Match scheduled successfully',
                     'match': {
@@ -711,7 +786,23 @@ def schedule_match(request, tournament_id, category_id):
                         'round': getattr(match_instance, 'round_number', 1)
                     },
                     'next_available_matches': remaining_matches
-                })
+                }
+                
+                # NEW: Add court information to response if court was assigned
+                if court_instance:
+                    response_data['court'] = {
+                        'id': court_instance.id,
+                        'name': court_instance.name
+                    }
+                    response_data['position'] = court_position
+                    response_data['queue_position'] = queue_position
+                    
+                    if court_position == "current":
+                        response_data['message'] = f"Match scheduled successfully and assigned to {court_instance.name}"
+                    else:
+                        response_data['message'] = f"Match scheduled and queued for {court_instance.name} (position {queue_position})"
+                
+                return Response(response_data)
             
             except Match.DoesNotExist:
                 return Response(
@@ -751,7 +842,7 @@ def update_score(request, tournament_id, category_id):
     This endpoint handles score updates for both set-based and simple scoring matches.
     For set-based scoring: Updates individual set scores until match completion.
     For simple scoring: Updates match score and can finish the match.
-    Enhanced with immediate progression and tournament state tracking.
+    Enhanced with immediate progression, tournament state tracking, and automatic court advancement.
     
     HTTP Method: POST
     
@@ -774,6 +865,14 @@ def update_score(request, tournament_id, category_id):
         - winner: Winner team name if match completed
         - next_matches_available: Number of new matches ready for scheduling
         - tournament_completed: Boolean indicating if tournament finished
+        - court_advancement: Court advancement details (if match was assigned to a court)
+            - court_id: ID of the court
+            - court_name: Name of the court
+            - advanced: Boolean indicating if court advanced
+            - previous_match_id: ID of the completed match
+            - new_current_match: Details of new current match (if any)
+            - court_available: Boolean indicating if court is now available
+            - remaining_queue_count: Number of matches still in queue
         
         Or error details with appropriate status code.
     """
@@ -1408,5 +1507,87 @@ def get_set_scores(match):
         "team2Score": team2_sets,  # Sets won  
         "currentSetScore": current_set_scores  # Points in current set
     }
+
+
+@api_view(['GET'])
+@organizer_required_api
+def list_courts(request, tournament_id):
+    """
+    List all courts for a tournament owned by the requesting organizer.
+
+    Returns: { "courts": [ CourtSerializer... ] }
+    """
+    try:
+        tournament = Tournament.objects.get(id=tournament_id)
+        if tournament.organization.admin != request.user:
+            return Response({'error': 'You do not have permission to view courts for this tournament'}, status=status.HTTP_403_FORBIDDEN)
+
+        courts = Court.objects.filter(tournament=tournament).select_related('current_match__team1', 'current_match__team2', 'current_match__category')
+        data = CourtSerializer(courts, many=True).data
+        return Response({"courts": data})
+    except Tournament.DoesNotExist:
+        return Response({'error': 'Tournament not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.error(f"Error listing courts: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@organizer_required_api
+def create_court(request, tournament_id):
+    """
+    Create a new court for the given tournament. Prevent duplicate names per tournament.
+    Body: { "name": "Court 1" }
+    """
+    try:
+        tournament = Tournament.objects.get(id=tournament_id)
+        if tournament.organization.admin != request.user:
+            return Response({'error': 'You do not have permission to create courts for this tournament'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = CourtCreateUpdateSerializer(data=request.data, context={'tournament_id': tournament.id})
+        if serializer.is_valid():
+            court = serializer.save()
+            return Response(CourtSerializer(court).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Tournament.DoesNotExist:
+        return Response({'error': 'Tournament not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.error(f"Error creating court: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@organizer_required_api
+def court_detail(request, court_id):
+    """
+    Retrieve, update, or delete a court. Delete blocked if current or queued matches exist.
+    """
+    try:
+        court = Court.objects.select_related('tournament__organization__admin', 'current_match__team1', 'current_match__team2', 'current_match__category').get(id=court_id)
+    except Court.DoesNotExist:
+        return Response({'error': 'Court not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Permission check
+    if court.tournament.organization.admin != request.user:
+        return Response({'error': 'You do not have permission to access this court'}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == 'GET':
+        # Include detailed upcoming matches for the detail view
+        serializer = CourtSerializer(court, context={'include_upcoming_details': True})
+        return Response(serializer.data)
+
+    if request.method == 'PUT':
+        serializer = CourtCreateUpdateSerializer(instance=court, data=request.data, context={'tournament_id': court.tournament.id})
+        if serializer.is_valid():
+            court = serializer.save()
+            return Response(CourtSerializer(court).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # DELETE
+    if court.current_match is not None or court.upcoming_matches.exists():
+        return Response({'error': 'Court cannot be deleted while matches are assigned'}, status=status.HTTP_400_BAD_REQUEST)
+    court.delete()
+    return Response({'success': True, 'message': 'Court deleted'})
+
 
 

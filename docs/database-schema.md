@@ -10,6 +10,7 @@ erDiagram
     User ||--o{ Order : "places"
     Organization ||--o{ Tournament : "hosts"
     Tournament ||--o{ Category : "contains"
+    Tournament ||--o{ Court : "has"
     Category ||--o{ Team : "participates"
     Category ||--o{ Fixture : "has"
     Team ||--o{ Player : "consists_of"
@@ -17,6 +18,8 @@ erDiagram
     Match ||--o{ Score : "has"
     Match ||--o{ SimpleScore : "has"
     Match ||--o{ SetScore : "has"
+    Court ||--o| Match : "current_match"
+    Court ||--o{ Match : "upcoming_matches"
     Sport ||--o{ Category : "played_in"
     Sport ||--o{ SetScore : "scored_as"
 
@@ -46,6 +49,13 @@ erDiagram
         string venue_address
         boolean completed
         int organization_id FK
+    }
+
+    Court {
+        int id PK
+        string name
+        int tournament_id FK
+        int current_match_id FK
     }
 
     Category {
@@ -198,6 +208,45 @@ class Tournament(models.Model):
 **Purpose**: Main tournament container
 **Validation**: `end_date` must be after `start_date`
 **Status**: `completed` flag marks finished tournaments
+
+### Court Model ✅ NEW
+```python
+class Court(models.Model):
+    name = models.CharField(max_length=255)
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='courts')
+    current_match = models.ForeignKey('Match', on_delete=models.SET_NULL, null=True, blank=True, related_name='current_court')
+    upcoming_matches = models.ManyToManyField('Match', related_name='upcoming_courts', blank=True)
+
+    def advance_to_next_match(self):
+        """Advance court to next match in queue"""
+        next_matches = self.upcoming_matches.order_by('id')
+        if next_matches.exists():
+            next_match = next_matches.first()
+            self.current_match = next_match
+            self.upcoming_matches.remove(next_match)
+        else:
+            self.current_match = None
+        self.save()
+```
+
+**Purpose**: Physical court/venue management within tournaments
+**Features**:
+- **Tournament Scoped**: Each court belongs to a specific tournament
+- **Current Match**: Tracks the match currently being played
+- **Queue Management**: Manages upcoming matches via `upcoming_matches` ManyToMany
+- **Auto-Advancement**: `advance_to_next_match()` method handles queue progression
+- **Unique Names**: Court names must be unique within each tournament
+
+**Key Relationships**:
+- `tournament`: ForeignKey to Tournament (CASCADE delete)
+- `current_match`: ForeignKey to Match (SET_NULL on delete)
+- `upcoming_matches`: ManyToManyField with Match model
+
+**Usage Examples**:
+- Court status tracking (available/occupied)
+- Automatic match progression on completion
+- Queue position management
+- Real-time court utilization monitoring
 
 ### Category Model
 ```python

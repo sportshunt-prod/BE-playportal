@@ -295,3 +295,88 @@ class TournamentDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tournament
         fields = ['id', 'name', 'details', 'organization', 'start_date', 'end_date', 'venue_address', 'venue_link', 'ph_number', 'sport', 'categories']
+
+
+class CourtSerializer(serializers.ModelSerializer):
+    tournament = serializers.IntegerField(source='tournament.id', read_only=True)
+    upcoming_matches_count = serializers.SerializerMethodField()
+    is_available = serializers.SerializerMethodField()
+    current_match = serializers.SerializerMethodField()
+    upcoming_matches = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Court
+        fields = [
+            'id', 'name', 'tournament', 'current_match',
+            'upcoming_matches_count', 'upcoming_matches', 'is_available'
+        ]
+        read_only_fields = ['id', 'tournament', 'current_match', 'upcoming_matches_count', 'upcoming_matches', 'is_available']
+
+    def get_upcoming_matches_count(self, obj):
+        return obj.upcoming_matches.count()
+
+    def get_is_available(self, obj):
+        return obj.current_match is None
+
+    def get_current_match(self, obj):
+        cm = obj.current_match
+        if not cm:
+            return None
+        return {
+            'id': cm.id,
+            'team1_name': cm.team1.name if cm.team1 else None,
+            'team2_name': cm.team2.name if cm.team2 else None,
+            'category_name': cm.category.name if cm.category else None,
+            'stage': getattr(cm, 'stage_number', None),
+            'match_number': getattr(cm, 'match_number', None)
+        }
+
+    def get_upcoming_matches(self, obj):
+        # Only include detailed upcoming matches for detail view
+        # Check if this is a detail view by looking at context
+        include_details = self.context.get('include_upcoming_details', False)
+        
+        if not include_details:
+            return []
+            
+        upcoming_matches = []
+        for idx, match in enumerate(obj.upcoming_matches.all().order_by('id'), 1):
+            upcoming_matches.append({
+                'id': match.id,
+                'queue_position': idx,
+                'team1_name': match.team1.name if match.team1 else 'BYE',
+                'team2_name': match.team2.name if match.team2 else 'BYE',
+                'category_name': match.category.name,
+                'stage': getattr(match, 'stage_number', None),
+                'match_number': getattr(match, 'match_number', None)
+            })
+        return upcoming_matches
+
+
+class CourtCreateUpdateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Name cannot be empty")
+
+        # Validate uniqueness per tournament
+        tournament_id = self.context.get('tournament_id')
+        instance = self.instance
+        qs = Court.objects.filter(tournament_id=tournament_id, name__iexact=value)
+        if instance is not None:
+            qs = qs.exclude(id=instance.id)
+        if qs.exists():
+            raise serializers.ValidationError("Court with this name already exists in this tournament")
+        return value
+
+    def create(self, validated_data):
+        tournament_id = self.context.get('tournament_id')
+        tournament = Tournament.objects.get(id=tournament_id)
+        return Court.objects.create(name=validated_data['name'], tournament=tournament)
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.save()
+        return instance

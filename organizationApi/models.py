@@ -379,14 +379,47 @@ class Court(models.Model):
     upcoming_matches = models.ManyToManyField('Match', related_name='upcoming_courts', blank=True)
 
     def advance_to_next_match(self):
+        """
+        Advance court to next match in queue.
+        
+        Returns:
+            dict: Information about the advancement
+        """
         next_matches = self.upcoming_matches.order_by('id')
+        
         if next_matches.exists():
             next_match = next_matches.first()
+            previous_match = self.current_match
+            
+            # Advance to next match
             self.current_match = next_match
             self.upcoming_matches.remove(next_match)
+            self.save()
+            
+            return {
+                'advanced': True,
+                'previous_match_id': previous_match.id if previous_match else None,
+                'new_current_match': {
+                    'id': next_match.id,
+                    'team1': next_match.team1.name if next_match.team1 else 'BYE',
+                    'team2': next_match.team2.name if next_match.team2 else 'BYE',
+                    'category': next_match.category.name
+                },
+                'remaining_queue_count': self.upcoming_matches.count()
+            }
         else:
+            # No more matches in queue - court becomes available
+            previous_match = self.current_match
             self.current_match = None
-        self.save()
+            self.save()
+            
+            return {
+                'advanced': True,
+                'previous_match_id': previous_match.id if previous_match else None,
+                'new_current_match': None,
+                'remaining_queue_count': 0,
+                'court_available': True
+            }
             
     def __str__(self):
         return f"{self.name} - {self.tournament.name}"

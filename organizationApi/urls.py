@@ -15,6 +15,10 @@ urlpatterns = [
     path('tournament/<int:tournament_id>/category/<int:category_id>/schedule_match/', views.schedule_match, name='schedule-match'),
     path('tournament/<int:tournament_id>/category/<int:category_id>/update_score/', views.update_score, name='update-score'),
     path('tournament/<int:tournament_id>/category/<int:category_id>/fixture/details/', views.get_fixture_details, name='fixture-details'),
+    # Courts
+    path('tournament/<int:tournament_id>/courts/', views.list_courts, name='courts-list'),
+    path('tournament/<int:tournament_id>/new_courts/', views.create_court, name='court-create'),
+    path('courts/<int:court_id>/', views.court_detail, name='court-detail'),
 ]
 
 app_name = 'org'
