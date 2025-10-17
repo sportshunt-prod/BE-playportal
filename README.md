@@ -9,7 +9,7 @@ Welcome to the SportsHunt Tournament Management System documentation. This syste
 | [Getting Started](./docs/getting-started.md) | Quick start guide for developers |
 | [Architecture Overview](./docs/architecture.md) | System architecture and design patterns |
 | [API Reference](./docs/api-reference.md) | Complete API endpoint documentation |
-| [Authentication](./docs/authentication.md) | Auth0 integration and JWT handling |
+| [Authentication](./docs/authentication.md) | Native Django authentication with JWT Bearer tokens |
 | [Database Schema](./docs/database-schema.md) | Data models and relationships |
 | [Deployment Guide](./docs/deployment.md) | Production deployment instructions |
 | [Development Guide](./docs/development.md) | Local development setup |
@@ -37,7 +37,7 @@ SportsHunt is a modern tournament management system designed to handle various s
 ## 🛠️ Technology Stack
 
 - **Backend**: Django 5.1+ with Django REST Framework.
-- **Authentication**: Auth0 OAuth 2.0.
+- **Authentication**: Native Django auth with email/password and Google OAuth, JWT Bearer tokens.
 - **Database**: SQLite (development), PostgreSQL (production).
 - **Testing**: Django Test Framework.
 - **Deployment**: Docker, Gunicorn, Nginx.

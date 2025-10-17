@@ -5,8 +5,8 @@ This document provides a high-level overview of the project's architecture, incl
 ## Technology Stack
 
 - **Backend:** Django, Django REST Framework
-- **Authentication:** Auth0 (OAuth 2.0)
-- **Database:** SQLite (for development)
+- **Authentication:** Native Django auth with email/password and Google OAuth, JWT Bearer tokens
+- **Database:** SQLite (for development), PostgreSQL (for production)
 
 ## Project Structure
 
@@ -18,14 +18,23 @@ The project is divided into three main Django apps:
 
 ## Authentication Flow (Login)
 
-The application uses Auth0 for a secure and robust authentication process.
+The application uses native Django authentication with support for email/password and Google OAuth.
 
-1.  **Initiate Login:** The user is redirected from the frontend to the `/login/` endpoint in `coreApi`.
-2.  **Redirect to Auth0:** The `login_view` redirects the user to the Auth0 login page.
-3.  **User Authentication:** The user authenticates with Auth0 using their credentials (e.g., Google, email/password).
-4.  **Callback to Application:** After successful authentication, Auth0 redirects the user back to the application's callback URL (`/login/handler/`).
-5.  **User Creation/Update:** The `social_django` library handles the callback, creating a new `User` in the database if they don't exist, or updating their information if they do. A JWT token is generated for the user.
-6.  **API Authentication:** For subsequent API requests, the JWT token must be included in the `Authorization` header as a Bearer token.
+### Email/Password Login
+1.  **User Submission:** The user submits their email and password to the `POST /auth/login/` endpoint.
+2.  **Credential Validation:** The backend validates the credentials against the database.
+3.  **JWT Generation:** Upon successful validation, a JWT token is generated with a 30-day expiration.
+4.  **Token Response:** The JWT token is returned in the response body along with user details.
+5.  **Client Storage:** The frontend stores the token in localStorage or sessionStorage.
+6.  **API Authentication:** For subsequent API requests, the JWT token must be included in the `Authorization` header as `Bearer <token>`.
+
+### Google OAuth Login
+1.  **Google Sign-In:** The user authenticates with Google on the frontend using Google Sign-In.
+2.  **ID Token:** Google returns an ID token to the frontend.
+3.  **Token Verification:** The frontend sends the Google ID token to `POST /auth/google/`.
+4.  **User Creation/Update:** The backend verifies the token with Google and creates or updates the user in the database.
+5.  **JWT Generation:** A JWT token is generated for the authenticated user.
+6.  **Token Response:** The JWT token is returned in the response body along with user details.
 
 ## Authorization
 
@@ -49,15 +58,17 @@ The API is split into two main parts:
 |   Frontend      |----->|    Django Backend      |<---->|     Database      |
 | (React/Vue/etc) |      |      (sportshunt)      |      | (SQLite/Postgres) |
 |                 |      |                        |      |                   |
-+-------+---------+      +-----------+------------+      +-------------------+
-        ^                            ^
-        | (Login Request)            | (Handles User/Token)
-        |                            |
-        v                            v
+|  - Stores JWT   |      |  - Native Auth         |      |  - User Data      |
+|  - Sends Bearer |      |  - Google OAuth        |      |  - Organizations  |
+|    Token        |      |  - JWT Generation      |      |  - Tournaments    |
++-----------------+      +------------------------+      +-------------------+
+        |                            ^
+        | (JWT Bearer Token)         | (OAuth Verification)
+        v                            |
 +-----------------+      +------------------------+
 |                 |      |                        |
-|      Auth0      |<---->|     social_django      |
-| (Authentication)|      | (OAuth Callback/User)  |
+| localStorage/   |      |   Google OAuth API     |
+| sessionStorage  |      | (Token Verification)   |
 |                 |      |                        |
 +-----------------+      +------------------------+
 
@@ -70,9 +81,10 @@ The API is split into two main parts:
 This section details the step-by-step process an organizer follows to create and manage a tournament.
 
 1.  **Authentication & Authorization**
-    *   The user logs in via the standard Auth0 flow.
+    *   The user logs in via email/password or Google OAuth.
     *   The system verifies that the user has the `is_organizer` flag set to `True`.
-    *   The user receives a JWT token that grants access to the `organizationApi` endpoints.
+    *   The user receives a JWT Bearer token that grants access to the `organizationApi` endpoints.
+    *   The token must be included in all requests: `Authorization: Bearer <token>`
 
 2.  **Create an Organization**
     *   **Action:** If the organizer is new, they create an organization. A user can only be an admin of one organization.
