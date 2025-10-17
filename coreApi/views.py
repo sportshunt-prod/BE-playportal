@@ -3,15 +3,20 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from sportshunt.utils import login_required_api, get_user_from_token
 from sportshunt.utils.authentication import get_auth_response
+from sportshunt.utils.google_auth import verify_google_token, get_or_create_google_user
 from rest_framework import status
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.contrib.auth import logout
 from django.conf import settings
 from django.utils import timezone
 from .models import *
 from organizationApi.models import Tournament, Category
-from .serializers import TournamentListSerializer, UserProfileSerializer, TournamentDetailSerializer, CategorySerializer
+from .serializers import (
+    TournamentListSerializer, UserProfileSerializer, TournamentDetailSerializer, 
+    CategorySerializer, RegisterSerializer, LoginSerializer, GoogleAuthSerializer
+)
+import jwt
+from datetime import datetime, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,39 +42,179 @@ def index(req):
     """
     return get_auth_response(req, include_organization=False)
 
-def login_view(req):
+
+@api_view(['POST'])
+def register_api(req):
     """
-    Redirect user to Auth0 login page.
+    Register new user with email/password.
     
-    This view redirects the user to Auth0's authentication page to initiate
-    the OAuth login flow.
+    This endpoint creates a new user account with email and password,
+    then generates a JWT token for immediate authentication.
     
-    HTTP Method: GET
+    HTTP Method: POST
+    
+    Body:
+        - email: User's email address
+        - username: Desired username
+        - password: Password (min 8 characters)
+        - password_confirm: Password confirmation
     
     Returns:
-        HttpResponseRedirect: Redirects to Auth0 login page
+        Response: JSON containing registration status, user details, and JWT token
     """
-    return HttpResponseRedirect(reverse('social:begin', args=['auth0']))
+    serializer = RegisterSerializer(data=req.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        
+        # Generate JWT
+        payload = {
+            'user_id': user.id,
+            'exp': datetime.now() + timedelta(days=30)
+        }
+        token = jwt.encode(payload, settings.JWT_SECRET, algorithm='HS256')
+        
+        logger.info(f"User registered: {user.username}")
+        
+        return Response({
+            'message': 'Registration successful',
+            'token': token,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_organizer': user.is_organizer
+            }
+        }, status=status.HTTP_201_CREATED)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['POST'])
+def login_api(req):
+    """
+    Login with email/password.
+    
+    This endpoint authenticates a user with email and password credentials,
+    then generates a JWT token for API authorization.
+    
+    HTTP Method: POST
+    
+    Body:
+        - email: User's email address
+        - password: User's password
+    
+    Returns:
+        Response: JSON containing login status, user details, and JWT token
+    """
+    serializer = LoginSerializer(data=req.data)
+    if serializer.is_valid():
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+        
+        try:
+            user = User.objects.get(email=email)
+            if user.check_password(password):
+                # Generate JWT
+                payload = {
+                    'user_id': user.id,
+                    'exp': datetime.now() + timedelta(days=30)
+                }
+                token = jwt.encode(payload, settings.JWT_SECRET, algorithm='HS256')
+                
+                logger.info(f"User logged in: {user.username}")
+                
+                return Response({
+                    'message': 'Login successful',
+                    'token': token,
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'is_organizer': user.is_organizer
+                    }
+                })
+            else:
+                return Response(
+                    {'error': 'Invalid credentials'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Invalid credentials'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def google_auth_api(req):
+    """
+    Login/register with Google OAuth.
+    
+    This endpoint authenticates or creates a user using Google OAuth credentials,
+    then generates a JWT token for API authorization.
+    
+    HTTP Method: POST
+    
+    Body:
+        - credential: Google ID token from Google Sign-In
+    
+    Returns:
+        Response: JSON containing authentication status, user details, and JWT token
+    """
+    serializer = GoogleAuthSerializer(data=req.data)
+    if serializer.is_valid():
+        credential = serializer.validated_data['credential']
+        
+        google_info = verify_google_token(credential)
+        if not google_info:
+            return Response(
+                {'error': 'Invalid Google token'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        user = get_or_create_google_user(google_info)
+        
+        # Generate JWT
+        payload = {
+            'user_id': user.id,
+            'exp': datetime.now() + timedelta(days=30)
+        }
+        token = jwt.encode(payload, settings.JWT_SECRET, algorithm='HS256')
+        
+        logger.info(f"User authenticated via Google: {user.username}")
+        
+        return Response({
+            'message': 'Google authentication successful',
+            'token': token,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_organizer': user.is_organizer
+            }
+        })
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
 def logout_view(req):
     """
-    Log out the user and redirect to Auth0 logout page.
+    Logout user.
     
-    This view logs out the user from the application and redirects to Auth0's
-    logout endpoint to complete the logout process.
+    With Bearer token authentication, logout is handled client-side by
+    removing the token from storage. This endpoint is kept for consistency
+    and can be used for logging purposes.
     
-    HTTP Method: GET
+    HTTP Method: POST
     
     Returns:
-        HttpResponseRedirect: Redirects to Auth0 logout page
+        Response: JSON confirming logout
     """
-    logout(req)
-    
-    domain = settings.SOCIAL_AUTH_AUTH0_DOMAIN
-    client_id = settings.SOCIAL_AUTH_AUTH0_KEY
-    return_to = req.build_absolute_uri(reverse('core:logout_handler'))
-
-    return HttpResponseRedirect(f"https://{domain}/v2/logout?client_id={client_id}&returnTo={return_to}")
+    logger.info("User logged out")
+    return Response({'message': 'Logout successful'})
 
 @api_view(['GET'])
 def tournament_list(request):

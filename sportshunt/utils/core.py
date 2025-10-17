@@ -9,7 +9,6 @@ from coreApi.models import User
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import HttpResponseRedirect
-from django.contrib.auth.decorators import login_required
 import jwt
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -23,7 +22,18 @@ logger = logging.getLogger(__name__)
 def login_required_api(f):
     @wraps(f)
     def decorated_function(req,  *args, **kwargs):
-        token = req.COOKIES.get('jwt_token')
+        # Get token from Authorization header
+        auth_header = req.headers.get('Authorization', '')
+        
+        if not auth_header.startswith('Bearer '):
+            logger.debug("Missing or invalid Authorization header")
+            return Response(
+                {"error": "Authorization header required. Format: Bearer <token>"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Extract token (remove 'Bearer ' prefix)
+        token = auth_header[7:]
         
         # Development mode - remove in production
         # if True: # Change to DEV mode if needed
@@ -31,23 +41,22 @@ def login_required_api(f):
         #     req.user = user_instance
         #     return f(req, *args, **kwargs)
         
-        if token:
-            if user := get_user_from_token(token):
-                try:
-                    user_instance = User.objects.get(id=user)
-                    req.user = user_instance
-                    logger.debug(f"User authenticated: {user_instance.username}")
-                    return f(req, *args, **kwargs)
-                except User.DoesNotExist:
-                    logger.warning(f"User with ID {user} not found")
-                    return Response(
-                        {"error": "User not found"},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
+        if user_id := get_user_from_token(token):
+            try:
+                user_instance = User.objects.get(id=user_id)
+                req.user = user_instance
+                logger.debug(f"User authenticated: {user_instance.username}")
+                return f(req, *args, **kwargs)
+            except User.DoesNotExist:
+                logger.warning(f"User with ID {user_id} not found")
+                return Response(
+                    {"error": "User not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
         
-        logger.debug("Unauthorized access attempt")
+        logger.debug("Invalid or expired token")
         return Response(
-            {"error": "Unauthorized"},
+            {"error": "Invalid or expired token"},
             status=status.HTTP_401_UNAUTHORIZED
         )
     return decorated_function
@@ -61,15 +70,20 @@ def organizer_required_api(f):
         #     req.user = User.objects.get(id=3)
         #     return f(req, *args, **kwargs)
         
-        token = req.COOKIES.get('jwt_token')
-        if not token:
-            logger.debug("Authentication token missing")
+        # Get token from Authorization header
+        auth_header = req.headers.get('Authorization', '')
+        
+        if not auth_header.startswith('Bearer '):
+            logger.debug("Missing or invalid Authorization header")
             return Response(
-                {"error": "Authentication token missing"},
+                {"error": "Authorization header required. Format: Bearer <token>"},
                 status=status.HTTP_401_UNAUTHORIZED
-            )       
-            
+            )
+        
+        # Extract token (remove 'Bearer ' prefix)
+        token = auth_header[7:]
         user_id = get_user_from_token(token)
+        
         if not user_id:
             logger.debug("Invalid or expired token")
             return Response(
@@ -137,38 +151,6 @@ def organizer_required_api(f):
     return decorated_function
 
 
-@login_required
-def login_handler(req):
-    """
-    Handle user login and generate JWT token.
-    
-    This function generates a JWT token for the authenticated user and
-    redirects them to the frontend with the token set as a cookie.
-    """
-    # Generate JWT
-    payload = {
-        'user_id': req.user.id,
-        'exp': datetime.now() + timedelta(days=30)
-    }
-    token = jwt.encode(payload, settings.JWT_SECRET, algorithm='HS256')
-    
-    # Redirect to frontend with token
-    frontend_url = settings.FRONTEND_URL[0]
-    response = HttpResponseRedirect(f"{frontend_url}")
-    
-    # Set JWT as cookie
-    response.set_cookie(    
-        'jwt_token', 
-        token,
-        httponly=True, 
-        secure=True,
-        samesite='None'  # Set 'Lax' in production
-    )
-    
-    logger.info(f"User {req.user.username} logged in successfully")
-    return response
-
-
 def get_user_from_token(token):
     """
     Extract user ID from JWT token.
@@ -199,14 +181,11 @@ def logout_handler(req):
     """
     Handle user logout.
     
-    This function removes the JWT token cookie and redirects the user
-    to the frontend.
+    With Bearer token authentication, logout is handled client-side by
+    removing the token from storage. This handler redirects to the frontend.
     """
     frontend_url = settings.FRONTEND_URL[0]
     response = HttpResponseRedirect(f"{frontend_url}")
-    
-    # Remove JWT as cookie
-    response.delete_cookie('jwt_token')
     
     logger.info("User logged out successfully")
     return response

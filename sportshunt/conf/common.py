@@ -85,7 +85,6 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
-    'social_django',
     'corsheaders',
     'rest_framework',
 ]
@@ -154,7 +153,6 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "coreApi.User"
-SOCIAL_AUTH_USER_MODEL = 'coreApi.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
@@ -163,23 +161,8 @@ REST_FRAMEWORK = {
     ),
 }
 
-SOCIAL_AUTH_TRAILING_SLASH = False
-
-SOCIAL_AUTH_AUTH0_SCOPE = [
-    'openid',
-    'profile',
-    'email'
-]
-
-AUTHENTICATION_BACKENDS = {
-    'social_core.backends.auth0.Auth0OAuth2',
+AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
-}
-
-LOGIN_URL = '/login/auth0'
-LOGIN_REDIRECT_URL = '/login/handler/'
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/login/handler/'
-SOCIAL_AUTH_LOGOUT_REDIRECT_URL= '/logout/handler/'
-LOGOUT_REDIRECT_URL = '/logout/handler/'
+]
 
 CORS_ALLOW_CREDENTIALS = True

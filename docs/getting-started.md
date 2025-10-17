@@ -7,7 +7,7 @@ This guide will help you get the SportsHunt backend up and running quickly.
 - Python 3.12+
 - Git
 - SQLite (included with Python)
-- Auth0 account (for authentication)
+- Google Cloud Console account (for Google OAuth, optional)
 
 ## 🚀 Quick Setup
 
@@ -16,7 +16,7 @@ This guide will help you get the SportsHunt backend up and running quickly.
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd BE
+cd BE-playportal
 
 # Install dependencies using uv (recommended)
 uv sync
@@ -35,10 +35,15 @@ DEBUG=True
 SECRET_KEY=your-secret-key-here
 ALLOWED_HOSTS=localhost,127.0.0.1
 
-# Auth0 Configuration
-SOCIAL_AUTH_AUTH0_DOMAIN=your-auth0-domain
-SOCIAL_AUTH_AUTH0_KEY=your-auth0-client-id
-SOCIAL_AUTH_AUTH0_SECRET=your-auth0-client-secret
+# Google OAuth Configuration (optional but recommended)
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# JWT Configuration
+JWT_SECRET=your-jwt-secret-key-here
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
 
 # Database (SQLite for development)
 DATABASE_URL=sqlite:///db.sqlite3
@@ -47,7 +52,21 @@ DATABASE_URL=sqlite:///db.sqlite3
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-### 3. Database Setup
+### 3. Google OAuth Setup (Optional)
+
+If you want to enable Google Sign-In:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing one
+3. Enable Google+ API
+4. Create OAuth 2.0 credentials:
+   - Application type: Web application
+   - Authorized JavaScript origins: `http://localhost:3000` (add production URLs later)
+5. Copy Client ID and Client Secret to your `.env` file
+
+**Note:** You can skip Google OAuth and use only email/password authentication for development.
+
+### 4. Database Setup
 
 ```bash
 # Run migrations
@@ -61,7 +80,7 @@ python manage.py createsuperuser
 python manage.py loaddata docs/fixtures/sample_data.json
 ```
 
-### 4. Start Development Server
+### 5. Start Development Server
 
 ```bash
 # Using the startup script
@@ -79,26 +98,65 @@ The API will be available at `http://localhost:8000`
 Access the Django admin interface at `http://localhost:8000/admin/` using your superuser credentials.
 
 ### API Testing
-1. Import the Postman collection: `docs/playportal-endpoints.json`
-2. Create or import a Postman environment and configure base URL and auth variables (see `docs/PLACEHOLDERS.md`)
-3. Test endpoints using the collection
 
-### OpenAPI Documentation
-If an OpenAPI spec is present (e.g., `docs/openapi.yaml`), you can view interactive docs at `http://localhost:8000/docs/` when the project serves it.
+#### Manual Testing
+
+You can test the authentication endpoints using curl:
+
+```bash
+# Register a new user
+curl -X POST http://localhost:8000/auth/register/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "username": "testuser",
+    "password": "SecurePass123!",
+    "password_confirm": "SecurePass123!"
+  }' \
+  -c cookies.txt
+
+# Login
+curl -X POST http://localhost:8000/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "SecurePass123!"
+  }' \
+  -c cookies.txt
+
+# Check auth status
+curl -X GET http://localhost:8000/auth/check/ \
+  -b cookies.txt
+
+# Get profile
+curl -X GET http://localhost:8000/profile/ \
+  -b cookies.txt
+```
+
+#### Postman Collection
+
+1. Import the Postman collection: `docs/playportal-endpoints.json`
+2. Update the collection with new authentication endpoints:
+   - `POST /auth/register/`
+   - `POST /auth/login/`
+   - `POST /auth/google/`
+   - `GET /auth/check/`
+3. Configure base URL and auth variables (see `docs/PLACEHOLDERS.md`)
 
 ## 📁 Project Structure
 
 ```
-BE/
-  coreApi/              # Core API endpoints
+BE-playportal/
+  coreApi/              # Core API endpoints (auth, tournaments)
   organizationApi/      # Organization management API
   sportshunt/           # Django project settings
-  conf/                 # Environment-specific configs
-  utils/                # Shared utilities
+    conf/               # Environment-specific configs
+    utils/              # Shared utilities (auth, decorators)
   docs/                 # Documentation
   logs/                 # Application logs
   manage.py             # Django management script
   requirements.txt      # Python dependencies
+  pyproject.toml        # UV project configuration
 ```
 
 ## 🧪 Running Tests
@@ -119,21 +177,62 @@ coverage report
 ## 🔍 Key Concepts
 
 ### User Roles
-- Regular Users: Can view tournaments and manage their profile
-- Organizers: Can create organizations and manage tournaments
+- **Regular Users**: Can view tournaments, register for events, and manage their profile
+- **Organizers**: Can create organizations and manage tournaments (set `is_organizer=True`)
 
 ### Authentication Flow
-1. User clicks login → Redirected to Auth0
-2. Auth0 authentication → Callback to `/login/handler/`
-3. JWT token generated → Use in API requests
+
+#### Email/Password Registration
+1. User submits registration form → `POST /auth/register/`
+2. Backend validates data and creates user
+3. JWT token generated and set as HTTP-only cookie
+4. Frontend receives user data
+
+#### Email/Password Login
+1. User submits login form → `POST /auth/login/`
+2. Backend verifies credentials
+3. JWT token generated and set as HTTP-only cookie
+4. Frontend receives user data
+
+#### Google OAuth
+1. Frontend initiates Google Sign-In
+2. User authenticates with Google
+3. Frontend receives Google ID token
+4. Frontend sends token → `POST /auth/google/`
+5. Backend verifies token with Google
+6. User created/updated in database
+7. JWT token generated and set as HTTP-only cookie
+
+### JWT Token Usage
+- JWT tokens are automatically sent with requests via cookies
+- No need to manually add Authorization headers
+- Tokens expire after 30 days
+- Use `@login_required_api` decorator to protect endpoints
 
 ## 🆘 Common Issues
 
-CORS Errors: Ensure your frontend URL is in `CORS_ALLOWED_ORIGINS` in settings.
+### CORS Errors
+Ensure your frontend URL is in `CORS_ALLOWED_ORIGINS` in settings and matches exactly (including protocol and port).
 
-Auth0 Configuration: Set up Auth0 application and configure callback URLs: `http://localhost:8000/login/handler/` and update `.env` with Auth0 credentials.
+```python
+# sportshunt/conf/dev.py
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React default
+    "http://127.0.0.1:3000",
+]
+```
 
-Database Issues
+### Google OAuth Errors
+- **"Invalid token"**: Check that `GOOGLE_CLIENT_ID` matches your Google Cloud Console project
+- **"Wrong issuer"**: Token might be expired or from wrong domain
+- **Google+ API disabled**: Enable it in Google Cloud Console
+
+### JWT Token Issues
+- **"Unauthorized"**: Token might be expired or `JWT_SECRET` changed
+- **Token not sent**: Ensure `credentials: 'include'` in fetch requests
+- **Cookie not set**: Check CORS and SameSite settings
+
+### Database Issues
 
 ```bash
 # Reset database
@@ -142,10 +241,49 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
+### Import Errors After Migration
+
+If you get import errors related to `social_django`:
+
+```bash
+# Clear Python cache
+find . -type d -name __pycache__ -exec rm -r {} +
+find . -name "*.pyc" -delete
+
+# Reinstall dependencies
+pip install -r requirements.txt
+```
+
+## 🔐 Security Notes
+
+### Development vs Production
+
+**Development (.env):**
+```env
+DEBUG=True
+FRONTEND_URL=http://localhost:3000
+# Cookies work with SameSite=None in dev
+```
+
+**Production:**
+```env
+DEBUG=False
+FRONTEND_URL=https://yourdomain.com
+# Requires HTTPS for secure cookies
+# Set SECURE_SSL_REDIRECT=True
+```
+
+### Password Requirements
+- Minimum 8 characters
+- Cannot be too similar to username/email
+- Cannot be a commonly used password
+- Cannot be entirely numeric
+
 ## 📚 Next Steps
 
-- Read the [Architecture Overview](./architecture.md)
-- Explore the [API Reference](./api-reference.md)
+- Read the [Authentication Guide](./authentication.md) for detailed auth flow
+- Explore the [API Reference](./api-reference.md) for all endpoints
 - Check out [Development Guide](./development.md) for advanced setup
+- Review [Architecture Overview](./architecture.md) for system design
 
 Need help? Check the [Troubleshooting Guide](./troubleshooting.md) or create an issue!

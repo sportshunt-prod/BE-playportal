@@ -6,21 +6,126 @@ This document details the endpoints available in the Core API.
 
 ## Authentication
 
+### Register
+
+-   **Description:** Register a new user with email and password.
+-   **Endpoint:** `/auth/register/`
+-   **Method:** `POST`
+-   **Authentication:** None required
+-   **Request Body:**
+    ```json
+    {
+        "email": "user@example.com",
+        "username": "johndoe",
+        "password": "SecurePass123!",
+        "password_confirm": "SecurePass123!"
+    }
+    ```
+-   **Success Response (201 Created):**
+    ```json
+    {
+        "message": "Registration successful",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "user": {
+            "id": 1,
+            "username": "johndoe",
+            "email": "user@example.com",
+            "is_organizer": false
+        }
+    }
+    ```
+-   **Error Response (400 Bad Request):**
+    ```json
+    {
+        "email": ["User with this email already exists"],
+        "password": ["This password is too common."]
+    }
+    ```
+
+### Login
+
+-   **Description:** Login with email and password to receive a JWT token.
+-   **Endpoint:** `/auth/login/`
+-   **Method:** `POST`
+-   **Authentication:** None required
+-   **Request Body:**
+    ```json
+    {
+        "email": "user@example.com",
+        "password": "SecurePass123!"
+    }
+    ```
+-   **Success Response (200 OK):**
+    ```json
+    {
+        "message": "Login successful",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "user": {
+            "id": 1,
+            "username": "johndoe",
+            "email": "user@example.com",
+            "is_organizer": false
+        }
+    }
+    ```
+-   **Error Response (401 Unauthorized):**
+    ```json
+    {
+        "error": "Invalid credentials"
+    }
+    ```
+
+### Google OAuth
+
+-   **Description:** Login or register using Google OAuth credentials.
+-   **Endpoint:** `/auth/google/`
+-   **Method:** `POST`
+-   **Authentication:** None required
+-   **Request Body:**
+    ```json
+    {
+        "credential": "google-id-token-here"
+    }
+    ```
+-   **Success Response (200 OK):**
+    ```json
+    {
+        "message": "Google authentication successful",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "user": {
+            "id": 2,
+            "username": "googleuser",
+            "email": "googleuser@example.com",
+            "is_organizer": false
+        }
+    }
+    ```
+-   **Error Response (401 Unauthorized):**
+    ```json
+    {
+        "error": "Invalid Google token"
+    }
+    ```
+
 ### Check Authentication Status
 
--   **Description:** Checks if the user is authenticated.
+-   **Description:** Checks if the user is authenticated using their Bearer token.
 -   **Endpoint:** `/auth/check/`
 -   **Method:** `GET`
 -   **Authentication:** Required (Bearer Token)
+-   **Headers:**
+    ```
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    ```
 -   **Success Response (200 OK):**
     ```json
     {
         "isAuthenticated": true,
         "user": {
             "id": 1,
-            "username": "testuser",
-            "email": "test@example.com",
-            "is_organizer": false
+            "name": "johndoe",
+            "email": "user@example.com",
+            "is_org": false
         }
     }
     ```
@@ -31,17 +136,18 @@ This document details the endpoints available in the Core API.
     }
     ```
 
-### Login
-
--   **Description:** Redirects the user to the Auth0 login page to initiate the login flow.
--   **Endpoint:** `/login/`
--   **Method:** `GET`
-
 ### Logout
 
--   **Description:** Logs the user out and redirects to the Auth0 logout page.
--   **Endpoint:** `/logout/`
--   **Method:** `GET`
+-   **Description:** Logout endpoint (token should be removed client-side).
+-   **Endpoint:** `/auth/logout/`
+-   **Method:** `POST`
+-   **Authentication:** None required
+-   **Success Response (200 OK):**
+    ```json
+    {
+        "message": "Logout successful"
+    }
+    ```
 
 ---
 
@@ -172,21 +278,22 @@ This document details the endpoints available in the Core API.
 -   **Endpoint:** `/profile/`
 -   **Method:** `GET`
 -   **Authentication:** Required (Bearer Token)
+-   **Headers:**
+    ```
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    ```
 -   **Success Response (200 OK):**
     ```json
     {
         "id": 1,
         "username": "testuser",
         "email": "test@example.com",
-        "is_organizer": false,
-        "auth0_data": {
-            "uid": "auth0|62f1234567890abcdef",
-            "extra_data": {
-                "nickname": "testuser",
-                "name": "Test User",
-                "picture": "https://example.com/picture.jpg",
-                "updated_at": "2025-08-14T12:00:00.000Z"
-            }
-        }
+        "is_organizer": false
+    }
+    ```
+-   **Error Response (401 Unauthorized):**
+    ```json
+    {
+        "error": "Authorization header required. Format: Bearer <token>"
     }
     ```
