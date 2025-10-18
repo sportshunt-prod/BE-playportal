@@ -7,7 +7,7 @@ Primary files:
 - `getting-started.md` — Quick start guide for developers.
 - `architecture.md` — System architecture and design patterns.
 - `api-reference.md` — API endpoints and examples.
-- `authentication.md` — Auth0 integration and JWT handling.
+- `authentication.md` — Native Django authentication with email/password and Google OAuth, JWT Bearer token handling.
 - `database-schema.md` — Data models and relationships.
 - `deployment.md` — Production deployment instructions.
 - `development.md` — Local development setup.

@@ -11,7 +11,7 @@ This document describes the primary API endpoints for the SportsHunt backend. Us
 
 ## Authentication
 
-Authentication uses Auth0; see `authentication.md` for details on obtaining tokens and using them against endpoints.
+Authentication uses JWT Bearer tokens; see `authentication.md` for details on obtaining tokens and using them against endpoints. Include tokens in the `Authorization: Bearer <token>` header.
 
 ## Core API Endpoints
 

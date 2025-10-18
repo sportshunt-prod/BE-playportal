@@ -21,6 +21,5 @@ from django.urls import path, include
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("coreApi.urls")),
-    path("", include('social_django.urls', namespace='social')),
     path("org/", include("organizationApi.urls")),
 ]

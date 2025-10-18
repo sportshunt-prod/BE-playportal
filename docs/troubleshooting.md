@@ -11,10 +11,12 @@ This guide lists common issues and solutions for the SportsHunt backend.
   python manage.py migrate
   ```
 
-### 2. Auth0 Login Fails
+### 2. Google OAuth Login Fails
 - **Solution:**
-  - Check Auth0 domain, client ID, and secret in your `.env` file.
-  - Ensure callback URLs are set correctly in Auth0 dashboard.
+  - Check `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in your `.env` file.
+  - Ensure authorized JavaScript origins are set correctly in Google Cloud Console.
+  - Verify Google+ API is enabled in your Google Cloud project.
+  - Check that the Google ID token is not expired.
 
 ### 3. Static Files Not Loading
 - **Solution:**

@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 		"name": "SportsHunt API Collection",
-		"description": "Complete API collection for SportsHunt Tournament Management System",
+		"description": "Complete API collection for SportsHunt Tournament Management System.\n\nNOTE: Authentication endpoints need updating:\n- Old Auth0 endpoints (login/logout handlers) are deprecated\n- Use new endpoints: POST /auth/register/, POST /auth/login/, POST /auth/google/, POST /auth/logout/\n- Include JWT Bearer token in Authorization header: Bearer <token>\n- See docs/AUTH_ENDPOINTS_QUICK_REFERENCE.md for details",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "12345678"
 	},
@@ -396,7 +396,7 @@
 									"_postman_previewlanguage": "json",
 									"header": [],
 									"cookie": [],
-									"body": "{\n    \"id\": 1,\n    \"username\": \"johndoe\",\n    \"email\": \"john@example.com\",\n    \"is_organizer\": false,\n    \"auth0_data\": {\n        \"uid\": \"auth0|123456789\",\n        \"extra_data\": {\n            \"name\": \"John Doe\",\n            \"picture\": \"https://example.com/avatar.jpg\"\n        }\n    }\n}"
+									"body": "{\n    \"id\": 1,\n    \"username\": \"johndoe\",\n    \"email\": \"john@example.com\",\n    \"is_organizer\": false\n}"
 								},
 								{
 									"name": "Unauthorized",

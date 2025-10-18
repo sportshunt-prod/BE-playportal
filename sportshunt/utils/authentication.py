@@ -18,7 +18,7 @@ def get_auth_response(request, include_organization=False):
     """
     Get authentication response for the current request.
     
-    This function checks for JWT token in cookies, validates it, and returns
+    This function checks for JWT token in Authorization header, validates it, and returns
     the appropriate authentication response.
     
     Args:
@@ -28,11 +28,15 @@ def get_auth_response(request, include_organization=False):
     Returns:
         Response: JSON response containing authentication status and user details
     """
-    token = request.COOKIES.get('jwt_token')
+    # Get token from Authorization header
+    auth_header = request.headers.get('Authorization', '')
     
-    if not token:
-        logger.debug("No JWT token found in request cookies")
+    if not auth_header.startswith('Bearer '):
+        logger.debug("No valid Authorization header found")
         return Response({'isAuthenticated': False})
+    
+    # Extract token (remove 'Bearer ' prefix)
+    token = auth_header[7:]
     
     user_id = get_user_from_token(token)
     if not user_id:
