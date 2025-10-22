@@ -6,6 +6,7 @@ from datetime import datetime
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 import json
+import math
 
 phone_regex = RegexValidator(
     regex=r'^\d{10}$',
@@ -258,16 +259,198 @@ class RoundRobin(models.Model):
             rr_team.save()
             
     def get_leaderboard(self):
-        return self.rr_teams.order_by('-matches_won')
+        """
+        Get teams sorted by performance.
+        Primary: matches_won (descending)
+        Secondary: matches_lost (ascending - fewer losses is better)
+        """
+        return self.rr_teams.order_by('-matches_won', 'matches_lost')
     
     def __str__(self):
         return f"Round Robin - {self.category.name} - {self.category.tournament.name}"
 
 
 class RoundRobinKnockout(models.Model):
-    # [Add fields as needed]
+    """
+    Two-phase tournament: Round Robin → Knockout.
+    
+    LIFECYCLE: RR phase → all teams play → top 50% qualify → KO phase auto-created → winner
+    STATE: round_robin_completed, knockout_started flags; current_phase property
+    QUALIFICATION: Sorted by wins/losses, tiebreaker via head-to-head results
+    AUTO-CREATION: KO matches created automatically when last RR match completes
+    """
+    round_robin_phase = models.ForeignKey(RoundRobin, on_delete=models.CASCADE, related_name='rr_ko_tournament', null=True, blank=True)
+    knockout_phase = models.ForeignKey(Knockout, on_delete=models.CASCADE, null=True, blank=True, related_name='rr_ko_tournament')
+    round_robin_completed = models.BooleanField(default=False)
+    knockout_started = models.BooleanField(default=False)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='rr_ko_category', null=True)
+    
+    def initialize_round_robin(self, rounds=1):
+        """
+        Create and setup RR phase with all teams, matches, and scores.
+        Called by serializer when creating RR_KO fixture.
+        """
+        if not self.round_robin_phase:
+            # Create RoundRobin instance
+            round_robin = RoundRobin.objects.create(
+                category=self.category,
+                rounds=rounds
+            )
+            
+            # Create RR_Team entries for all teams
+            teams = self.category.teams.all()
+            rr_teams = [RR_Team(team=team, round_robin=round_robin) for team in teams]
+            created_rr_teams = RR_Team.objects.bulk_create(rr_teams)
+            round_robin.rr_teams.set(created_rr_teams)
+            
+            # Schedule all round robin matches (creates Match + Score objects)
+            round_robin.schedule_matches()
+            
+            # Link the round robin phase
+            self.round_robin_phase = round_robin
+            self.save()
+            round_robin.save()
+            
+            return round_robin
+        return self.round_robin_phase
+    
+    def start_knockout(self, qualified_teams):
+        """
+        Start KO phase with qualified teams.
+        Similar to how KO fixture is created - just creates Knockout instance.
+        Matches will be created later via create_ko_matches endpoint.
+        """
+        if self.round_robin_completed and not self.knockout_started:
+            # Create Knockout instance (same as regular KO)
+            knockout = Knockout.objects.create(category=self.category)
+            knockout.bracket_teams.set(qualified_teams)
+            
+            total_teams = len(qualified_teams) if isinstance(qualified_teams, list) else qualified_teams.count()
+            knockout.ko_stage = math.ceil(math.log2(total_teams))
+            knockout.save()
+            
+            # Link the knockout phase
+            self.knockout_phase = knockout
+            self.knockout_started = True
+            self.save()
+            
+            return knockout
+        return None
+    
+    @property
+    def  current_phase(self):
+        """Returns 'round_robin' or 'knockout' based on knockout_started flag."""
+        if self.knockout_started:
+            return 'knockout'
+        else:
+            return 'round_robin'
+    
+    def check_round_robin_completion(self):
+        """Check if round robin phase is complete and update status"""
+        if not self.round_robin_completed:
+            total_matches = self.round_robin_phase.all_matches.count()
+            if total_matches == 0:
+                return False
+            
+            completed_matches = self.round_robin_phase.all_matches.filter(
+                match_state=True
+            ).count()
+            
+            if completed_matches == total_matches:
+                self.round_robin_completed = True
+                self.save()
+                return True
+        
+        return False
+    
+    def get_qualified_teams(self, num_teams=8):
+        """Get top teams from round robin phase with head-to-head tiebreaker."""
+        if not self.round_robin_completed:
+            return []
+        
+        leaderboard = list(self.round_robin_phase.get_leaderboard())
+        
+        # Simple approach: check adjacent teams for ties
+        result = []
+        i = 0
+        while i < len(leaderboard):
+            # Collect all teams with same wins/losses as current team
+            current_team = leaderboard[i]
+            tied_group = [current_team]
+            j = i + 1
+            
+            while j < len(leaderboard):
+                if (leaderboard[j].matches_won == current_team.matches_won and 
+                    leaderboard[j].matches_lost == current_team.matches_lost):
+                    tied_group.append(leaderboard[j])
+                    j += 1
+                else:
+                    break
+            
+            # If multiple teams tied, resolve head-to-head
+            if len(tied_group) > 1:
+                resolved = self._resolve_head_to_head(tied_group)
+                result.extend(resolved)
+            else:
+                result.append(current_team)
+            
+            i = j  # Move to next group
+        
+        return [entry.team for entry in result[:num_teams]]
+    
+    def _resolve_head_to_head(self, tied_teams):
+        """
+        Resolve ties using head-to-head match results.
+        For 2 teams: Check who won their match
+        For 3+ teams: Count wins among tied teams only
+        """
+        if len(tied_teams) <= 1:
+            return tied_teams
+        
+        # Handle 2-team tie: simple head-to-head winner lookup
+        if len(tied_teams) == 2:
+            team1 = tied_teams[0].team
+            team2 = tied_teams[1].team
+            
+            # Use Q() for bidirectional lookup (team1 vs team2 OR team2 vs team1)
+            match = self.round_robin_phase.all_matches.filter(
+                models.Q(team1=team1, team2=team2) | 
+                models.Q(team1=team2, team2=team1),
+                match_state=True
+            ).first()
+            
+            # Return winner first, loser second
+            if match and match.winner:
+                if match.winner == team1:
+                    return [tied_teams[0], tied_teams[1]]
+                else:
+                    return [tied_teams[1], tied_teams[0]]
+            # No winner or match not found: maintain original order
+            return tied_teams
+        
+        # Handle 3+ team tie: mini round-robin among tied teams only
+        else:
+            team_ids = [t.team.id for t in tied_teams]
+            
+            # Find all matches between ONLY the tied teams
+            h2h_matches = self.round_robin_phase.all_matches.filter(
+                team1__id__in=team_ids,
+                team2__id__in=team_ids,
+                match_state=True
+            )
+            
+            # Count wins among tied teams only (ignores wins against non-tied teams)
+            h2h_wins = {}
+            for team_entry in tied_teams:
+                wins = h2h_matches.filter(winner=team_entry.team).count()
+                h2h_wins[team_entry] = wins
+            
+            # Sort by head-to-head wins (desc)
+            return sorted(tied_teams, key=lambda t: h2h_wins.get(t, 0), reverse=True)
+    
     def __str__(self):
-        return f"Round Robin + Knockout - {self.category.name} - {self.category.tournament.name}"
+        phase = self.current_phase.capitalize()
+        return f"Round Robin + Knockout ({phase}) - {self.category.name} - {self.category.tournament.name}"
 
 
 # Team and Match Models
@@ -368,7 +551,9 @@ class SimpleScore(models.Model):
     team2_score = models.PositiveSmallIntegerField(default=0)
 
     def __str__(self):
-        return f"{self.match.team1.name} ({self.team1_score}) vs {self.match.team2.name} ({self.team2_score})"
+        team1_name = self.match.team1.name if self.match.team1 else "TBD"
+        team2_name = self.match.team2.name if self.match.team2 else "TBD"
+        return f"{team1_name} ({self.team1_score}) vs {team2_name} ({self.team2_score})"
 
 
 # Court Model

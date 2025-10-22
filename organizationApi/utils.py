@@ -6,6 +6,33 @@ from django.db import models
 
 logger = logging.getLogger(__name__)
 
+
+class KoGenContentSwap:
+    """
+    Context manager to temporarily swap fixture content_object for RR_KO KoGen operations.
+    
+    This is needed because KoGen expects content_object to be a Knockout instance,
+    but RR_KO fixtures have RoundRobinKnockout as content_object.
+    
+    Usage:
+        with KoGenContentSwap(fixture, knockout_phase):
+            ko_gen = KoGen(category, data, sets, points)
+            result = ko_gen.create_complete_bracket_with_teams()
+    """
+    def __init__(self, fixture, knockout_phase):
+        self.fixture = fixture
+        self.knockout_phase = knockout_phase
+        self.original = None
+    
+    def __enter__(self):
+        self.original = self.fixture.content_object
+        self.fixture.content_object = self.knockout_phase
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.fixture.content_object = self.original
+        return False
+
 class KoGen:
     def __init__(self, category_instance, json_data=None, no_sets=3, points_to_win=15):
         """Initialize the Knockout Generator."""
@@ -164,7 +191,7 @@ class KoGen:
         try:
             # Calculate number of teams from provided matches
             num_teams = len(self.json_data["matches"]) * 2
-            logger.info(f"Creating complete bracket for {num_teams} teams")
+            logger.debug(f"Creating complete bracket for {num_teams} teams")
             
             # Generate complete bracket structure
             self.generate_complete_bracket(num_teams)
@@ -175,7 +202,7 @@ class KoGen:
             if isinstance(result, dict) and ('error' in result or 'errors' in result):
                 return result
                 
-            logger.info(f"Successfully created complete bracket with team assignments")
+            logger.debug(f"Successfully created complete bracket with team assignments")
             return result
             
         except Exception as e:
@@ -220,7 +247,7 @@ class KoGen:
         """Generate complete knockout bracket structure without teams."""
         total_stages, bracket_structure = self.calculate_bracket_structure(num_teams)
         
-        logger.info(f"Generating complete bracket for {num_teams} teams with {total_stages} stages")
+        logger.debug(f"Generating complete bracket for {num_teams} teams with {total_stages} stages")
         
         try:
             with transaction.atomic():
@@ -253,7 +280,7 @@ class KoGen:
                 # Only matches with teams go to bracket_matches initially
                 self.ko_instance.save()
                 
-                logger.info(f"Successfully created complete bracket with {len(all_matches)} matches")
+                logger.debug(f"Successfully created complete bracket with {len(all_matches)} matches")
                 return all_matches
                 
         except Exception as e:
@@ -345,7 +372,7 @@ class KoGen:
             # Check if next match can be scheduled (both teams ready)
             if next_match.team1 and next_match.team2:
                 self.ko_instance.bracket_matches.add(next_match)
-                logger.info(f"Next match ready for scheduling: {next_match.team1.name} vs {next_match.team2.name}")
+                logger.debug(f"Next match ready for scheduling: {next_match.team1.name} vs {next_match.team2.name}")
                 
         except Match.DoesNotExist:
             logger.error(f"Next match not found: Stage {next_stage}, Match {next_match_number}")
@@ -548,6 +575,16 @@ class ScoreManager:
             self.handle_ko_completion()
         elif self.fixture.fixtureType == 'RR':
             self.handle_rr_completion()
+        elif self.fixture.fixtureType == 'RR_KO':
+            # For RR_KO, check if this match belongs to KO phase
+            rr_ko_instance = self.fixture.content_object
+            
+            # Check if match belongs to knockout phase (not just current_phase status)
+            if rr_ko_instance.knockout_phase and \
+               rr_ko_instance.knockout_phase.all_matches.filter(id=self.match.id).exists():
+                # This is a KO match - handle progression
+                self.handle_ko_completion_for_rr_ko(rr_ko_instance)
+            # If it's an RR match, no special handling needed (already removed from scheduled_matches)
     
     def advance_court_if_assigned(self):
         """Automatically advance court to next match if this match was current."""
@@ -591,7 +628,20 @@ class ScoreManager:
         ko_gen = KoGen(self.category, {}, self.category.max_sets, self.category.required_points)
         ko_gen.progress_winner_to_next_match(self.match)
         
-        logger.info(f"Match completed: {self.match.winner.name} progressed to next stage")
+        logger.debug(f"Match completed: {self.match.winner.name} progressed to next stage")
+    
+    def handle_ko_completion_for_rr_ko(self, rr_ko_instance):
+        """Handle knockout phase completion for RR_KO tournaments."""
+        ko_instance = rr_ko_instance.knockout_phase
+        ko_instance.winners_bracket.add(self.match.winner)
+        ko_instance.save()
+        
+        # Use context manager to swap content_object for KoGen
+        with KoGenContentSwap(self.fixture, ko_instance):
+            ko_gen = KoGen(self.category, {}, self.category.max_sets, self.category.required_points)
+            ko_gen.progress_winner_to_next_match(self.match)
+        
+        logger.debug(f"RR_KO Match completed: {self.match.winner.name} progressed to next stage")
     
     def handle_rr_completion(self):
         """Handle round robin statistics update."""

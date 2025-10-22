@@ -95,6 +95,7 @@ The API will be available at `http://localhost:8000`
 ## 🔧 Development Tools
 
 ### Django Admin
+
 Access the Django admin interface at `http://localhost:8000/admin/` using your superuser credentials.
 
 ### API Testing
@@ -112,8 +113,9 @@ curl -X POST http://localhost:8000/auth/register/ \
     "username": "testuser",
     "password": "SecurePass123!",
     "password_confirm": "SecurePass123!"
-  }' \
-  -c cookies.txt
+  }'
+
+# The response contains a JSON payload with a 'token' field. Use it in Authorization header for subsequent requests:
 
 # Login
 curl -X POST http://localhost:8000/auth/login/ \
@@ -121,16 +123,15 @@ curl -X POST http://localhost:8000/auth/login/ \
   -d '{
     "email": "test@example.com",
     "password": "SecurePass123!"
-  }' \
-  -c cookies.txt
+  }'
 
-# Check auth status
+# Example: check auth status (replace <token> with returned token)
 curl -X GET http://localhost:8000/auth/check/ \
-  -b cookies.txt
+  -H "Authorization: Bearer <token>"
 
 # Get profile
 curl -X GET http://localhost:8000/profile/ \
-  -b cookies.txt
+  -H "Authorization: Bearer <token>"
 ```
 
 #### Postman Collection
@@ -177,24 +178,28 @@ coverage report
 ## 🔍 Key Concepts
 
 ### User Roles
+
 - **Regular Users**: Can view tournaments, register for events, and manage their profile
 - **Organizers**: Can create organizations and manage tournaments (set `is_organizer=True`)
 
 ### Authentication Flow
 
 #### Email/Password Registration
+
 1. User submits registration form → `POST /auth/register/`
 2. Backend validates data and creates user
 3. JWT token generated and set as HTTP-only cookie
 4. Frontend receives user data
 
 #### Email/Password Login
+
 1. User submits login form → `POST /auth/login/`
 2. Backend verifies credentials
 3. JWT token generated and set as HTTP-only cookie
 4. Frontend receives user data
 
 #### Google OAuth
+
 1. Frontend initiates Google Sign-In
 2. User authenticates with Google
 3. Frontend receives Google ID token
@@ -204,6 +209,7 @@ coverage report
 7. JWT token generated and set as HTTP-only cookie
 
 ### JWT Token Usage
+
 - JWT tokens are automatically sent with requests via cookies
 - No need to manually add Authorization headers
 - Tokens expire after 30 days
@@ -212,6 +218,7 @@ coverage report
 ## 🆘 Common Issues
 
 ### CORS Errors
+
 Ensure your frontend URL is in `CORS_ALLOWED_ORIGINS` in settings and matches exactly (including protocol and port).
 
 ```python
@@ -223,13 +230,15 @@ CORS_ALLOWED_ORIGINS = [
 ```
 
 ### Google OAuth Errors
+
 - **"Invalid token"**: Check that `GOOGLE_CLIENT_ID` matches your Google Cloud Console project
 - **"Wrong issuer"**: Token might be expired or from wrong domain
 - **Google+ API disabled**: Enable it in Google Cloud Console
 
 ### JWT Token Issues
+
 - **"Unauthorized"**: Token might be expired or `JWT_SECRET` changed
-- **Token not sent**: Ensure `credentials: 'include'` in fetch requests
+- **Token not sent**: Ensure you include the Authorization header in requests: `Authorization: Bearer <token>`
 - **Cookie not set**: Check CORS and SameSite settings
 
 ### Database Issues
@@ -259,6 +268,7 @@ pip install -r requirements.txt
 ### Development vs Production
 
 **Development (.env):**
+
 ```env
 DEBUG=True
 FRONTEND_URL=http://localhost:3000
@@ -266,6 +276,7 @@ FRONTEND_URL=http://localhost:3000
 ```
 
 **Production:**
+
 ```env
 DEBUG=False
 FRONTEND_URL=https://yourdomain.com
@@ -274,6 +285,7 @@ FRONTEND_URL=https://yourdomain.com
 ```
 
 ### Password Requirements
+
 - Minimum 8 characters
 - Cannot be too similar to username/email
 - Cannot be a commonly used password
