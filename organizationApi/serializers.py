@@ -156,6 +156,14 @@ class CategorySerializer(serializers.ModelSerializer):
         return value
     
     def validate_tournament_id(self, value):
+        """
+        Validate tournament exists and user has permission.
+        
+        NOTE: Permission check is done here (not in view) because:
+        1. We need to validate tournament ownership BEFORE creating category
+        2. Serializer has access to both tournament_id and request context
+        3. Prevents invalid data from reaching the database layer
+        """
         try:
             tournament = Tournament.objects.get(id=value)
             # Check if user is the admin of the organization that owns this tournament
@@ -192,82 +200,121 @@ class TeamSerializer(serializers.ModelSerializer):
 
 
 class FixtureSerializer(serializers.Serializer):
-    fixtureType = serializers.ChoiceField(choices=['KO', 'RR'], required=True)
-    noOfSets = serializers.IntegerField(min_value=1, required=False, default=3)
-    pointsToWin = serializers.IntegerField(min_value=1, required=False, default=15)
-    noOfRounds = serializers.IntegerField(min_value=1, required=False, default=1)
-    
+    # Support all fixture types defined in the model, including Round Robin + Knockout (RR_KO)
+    fixture_type = serializers.ChoiceField(choices=['KO', 'RR', 'RR_KO'], required=True)
+    no_of_sets = serializers.IntegerField(min_value=1, required=False, default=3)
+    points_to_win = serializers.IntegerField(min_value=1, required=False, default=15)
+    no_of_rounds = serializers.IntegerField(min_value=1, required=False, default=1)
+
     def validate(self, data):
-        fixture_type = data.get('fixtureType')
-        
+        fixture_type = data.get('fixture_type')
+
         # Validate required fields for RR fixture type
         if fixture_type == 'RR':
-            if 'pointsToWin' not in data:
-                data['pointsToWin'] = 15  # Default value
-            if 'noOfRounds' not in data:
-                data['noOfRounds'] = 1    # Default value
-            if 'noOfSets' not in data:
-                data['noOfSets'] = 3      # Default value
-                
+            if 'points_to_win' not in data:
+                data['points_to_win'] = 15  # Default value
+            if 'no_of_rounds' not in data:
+                data['no_of_rounds'] = 1    # Default value
+            if 'no_of_sets' not in data:
+                data['no_of_sets'] = 3      # Default value
+
         return data
+    
+    def _validate_teams(self, category_instance):
+        """Validate that category has enough teams for fixture."""
+        teams = category_instance.teams.all()
+        
+        if teams.count() == 1:
+            category_instance.winner = teams.first()
+            category_instance.save()
+            raise serializers.ValidationError(
+                {"teams": "Only one team in the category, so they won by default"}
+            )
+        
+        return teams
+    
+    def _apply_scoring_config(self, category_instance):
+        """Apply scoring configuration to category from validated data."""
+        points_to_win = self.validated_data.get('points_to_win')
+        no_sets = self.validated_data.get('no_of_sets')
+        
+        if points_to_win:
+            category_instance.required_points = points_to_win
+        if no_sets:
+            category_instance.max_sets = no_sets
+        
+        category_instance.save()
+    
+    def _create_ko_fixture(self, category_instance, teams):
+        """Create Knockout fixture with bracket teams."""
+        # Apply scoring configuration
+        self._apply_scoring_config(category_instance)
+        
+        ko_instance = Knockout.objects.create(category=category_instance)
+        ko_instance.bracket_teams.set(teams)
+        no_teams = teams.count()
+        cur_lvl = math.ceil(math.log2(no_teams))
+        ko_instance.ko_stage = cur_lvl
+        ko_instance.save()
+        
+        return ko_instance
+    
+    def _create_rr_fixture(self, category_instance, teams, fixture_type):
+        """Create Round Robin or RR_KO fixture with matches."""
+        # Apply scoring configuration
+        self._apply_scoring_config(category_instance)
+        
+        no_of_rounds = self.validated_data.get('no_of_rounds')
+        
+        if fixture_type == 'RR_KO':
+            # For RR_KO, create wrapper and initialize RR phase
+            rr_ko_instance = RoundRobinKnockout.objects.create(category=category_instance)
+            rr_ko_instance.initialize_round_robin(rounds=no_of_rounds)
+            return rr_ko_instance
+        else:
+            # For regular RR, create directly
+            rr_instance = RoundRobin.objects.create(
+                category=category_instance,
+                rounds=no_of_rounds,
+            )
+            
+            # Create RR_Teams for all teams
+            rr_teams = [RR_Team(team=team, round_robin=rr_instance) for team in teams]
+            created_rr_teams = RR_Team.objects.bulk_create(rr_teams)
+            rr_instance.rr_teams.set(created_rr_teams)
+            
+            # Schedule all round robin matches
+            rr_instance.schedule_matches()
+            rr_instance.save()
+            
+            return rr_instance
     
     def create_fixture(self, category_instance):
         """
-        Create fixture for a category based on validated data
+        Create fixture for a category based on validated data.
+        
+        Supports three fixture types:
+        - KO: Knockout tournament
+        - RR: Round Robin tournament
+        - RR_KO: Combined Round Robin + Knockout
         """
         try:
             with transaction.atomic():
-                teams = category_instance.teams.all()
+                teams = self._validate_teams(category_instance)
                 
-                if teams.count() == 1:
-                    category_instance.winner = teams.first()
-                    category_instance.save()
-                    raise serializers.ValidationError(
-                        {"teams": "Only one team in the category, so they won by default"}
-                    )
-                
-                fixture_type = self.validated_data.get('fixtureType')
+                fixture_type = self.validated_data.get('fixture_type')
                 fixture_instance = Fixture.objects.create(fixtureType=fixture_type, category=category_instance)
                 
                 if fixture_type == 'KO':
-                    ko_instance = Knockout.objects.create(category=category_instance)
-                    ko_instance.bracket_teams.set(teams)
-                    no_teams = teams.count()
-                    cur_lvl = math.ceil(math.log2(no_teams))
-                    ko_instance.ko_stage = cur_lvl
-                    ko_instance.save()
-
-                    fixture_instance.content_object = ko_instance
-                    fixture_instance.save()
-                    category_instance.fixture = fixture_instance
-                    category_instance.save()
-
-                elif fixture_type == 'RR':
-                    points_to_win = self.validated_data.get('pointsToWin')
-                    no_of_rounds = self.validated_data.get('noOfRounds')
-                    no_sets = self.validated_data.get('noOfSets')
-                    
-                    category_instance.required_points = points_to_win
-                    category_instance.max_sets = no_sets
-                    rr_instance = RoundRobin.objects.create(
-                        category=category_instance, 
-                        rounds=no_of_rounds,
-                    )
-                    
-                    rr_teams = []
-                    for team in teams:
-                        rr_teams.append(RR_Team(team=team, round_robin=rr_instance))
-                    
-                    # Use bulk_create for better performance
-                    created_rr_teams = RR_Team.objects.bulk_create(rr_teams)
-                    rr_instance.rr_teams.set(created_rr_teams)
-                    rr_instance.schedule_matches()    
-                    fixture_instance.content_object = rr_instance
-                    fixture_instance.save()
-                    
-                    category_instance.fixture = fixture_instance
-                    category_instance.save()
-                    rr_instance.save()
+                    content_object = self._create_ko_fixture(category_instance, teams)
+                elif fixture_type in ['RR', 'RR_KO']:
+                    content_object = self._create_rr_fixture(category_instance, teams, fixture_type)
+                
+                # Link content_object and save
+                fixture_instance.content_object = content_object
+                fixture_instance.save()
+                category_instance.fixture = fixture_instance
+                category_instance.save()
                 
                 return fixture_instance
                 
