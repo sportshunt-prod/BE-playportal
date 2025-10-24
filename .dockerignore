@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Database
+db.sqlite3
+*.db
+
+# Static files (will be collected in container)
+staticfiles/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Tests
+*.log
+logs/*.log
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# UV lock file (not needed in container)
+uv.lock
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
