@@ -1,1225 +1,2408 @@
 {
-	"info": {
-		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-		"name": "SportsHunt API Collection",
-		"description": "Complete API collection for SportsHunt Tournament Management System.\n\nNOTE: Authentication endpoints need updating:\n- Old Auth0 endpoints (login/logout handlers) are deprecated\n- Use new endpoints: POST /auth/register/, POST /auth/login/, POST /auth/google/, POST /auth/logout/\n- Include JWT Bearer token in Authorization header: Bearer <token>\n- See docs/AUTH_ENDPOINTS_QUICK_REFERENCE.md for details",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "12345678"
-	},
-	"item": [
-		{
-			"name": "Core APIs",
-			"item": [
-				{
-					"name": "Authentication",
-					"item": [
-						{
-							"name": "Check Authentication Status",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Cookie",
-										"value": "jwt_token={{jwt_token}}",
-										"type": "text",
-										"description": "JWT token for authentication (sent as cookie)"
-									}
-								],
-								"url": {
-									"raw": "{{base_url}}/auth/check/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"auth",
-										"check",
-										""
-									]
-								},
-								"description": "Verifies if a user is authenticated by checking their JWT token in cookies. Returns authentication status and user information."
-							},
-							"response": [
-								{
-									"name": "Authenticated User",
-									"originalRequest": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Authorization",
-												"value": "Bearer {{jwt_token}}",
-												"type": "text"
-											}
-										],
-										"url": {
-											"raw": "{{base_url}}/auth/check/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"auth",
-												"check",
-												""
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"isAuthenticated\": true,\n    \"user\": {\n        \"id\": 1,\n        \"name\": \"John Doe\",\n        \"email\": \"john@example.com\",\n        \"is_org\": false\n    }\n}"
-								},
-								{
-									"name": "Unauthenticated User",
-									"originalRequest": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{base_url}}/auth/check/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"auth",
-												"check",
-												""
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"isAuthenticated\": false\n}"
-								}
-							]
-						},
-						{
-							"name": "Login (Redirect to Auth0)",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/login/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"login",
-										""
-									]
-								},
-								"description": "Redirects user to Auth0 login page to initiate OAuth login flow."
-							},
-							"response": []
-						},
-						{
-							"name": "Login Handler",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/login/handler/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"login",
-										"handler",
-										""
-									]
-								},
-								"description": "Handles the OAuth callback from Auth0 after successful login."
-							},
-							"response": []
-						},
-						{
-							"name": "Logout",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/logout/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"logout",
-										""
-									]
-								},
-								"description": "Logs out the user and redirects to Auth0 logout page."
-							},
-							"response": []
-						},
-						{
-							"name": "Logout Handler",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/logout/handler/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"logout",
-										"handler",
-										""
-									]
-								},
-								"description": "Handles the OAuth callback from Auth0 after logout."
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Tournaments",
-					"item": [
-						{
-							"name": "Get Tournament List (Upcoming & Past)",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/upcoming-past_tournaments/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"upcoming-past_tournaments",
-										""
-									]
-								},
-								"description": "Get lists of upcoming tournaments (future start dates) and past tournaments (past end dates), limited to 4 of each."
-							},
-							"response": [
-								{
-									"name": "Successful Response",
-									"originalRequest": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{base_url}}/upcoming-past_tournaments/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"upcoming-past_tournaments",
-												""
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"upcoming_tournaments\": [\n        {\n            \"id\": 1,\n            \"name\": \"Summer Championship 2025\",\n            \"organization\": {\n                \"name\": \"Sports Club Delhi\"\n            },\n            \"start_date\": \"2025-09-15\",\n            \"end_date\": \"2025-09-17\",\n            \"venue_address\": \"Delhi Sports Complex\",\n            \"completed\": false\n        }\n    ],\n    \"past_tournaments\": [\n        {\n            \"id\": 2,\n            \"name\": \"Winter Cup 2024\",\n            \"organization\": {\n                \"name\": \"Mumbai Sports Association\"\n            },\n            \"start_date\": \"2024-12-01\",\n            \"end_date\": \"2024-12-03\",\n            \"venue_address\": \"Mumbai Stadium\",\n            \"completed\": true\n        }\n    ]\n}"
-								}
-							]
-						},
-						{
-							"name": "Get Tournament Details",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/tournament/{{tournament_id}}/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"tournament",
-										"{{tournament_id}}",
-										""
-									]
-								},
-								"description": "Get detailed information about a specific tournament, including categories, organization, dates, location, etc."
-							},
-							"response": [
-								{
-									"name": "Successful Response",
-									"originalRequest": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{base_url}}/tournament/1/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"tournament",
-												"1",
-												""
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"id\": 1,\n    \"name\": \"Summer Championship 2025\",\n    \"details\": \"Annual summer tournament\",\n    \"organization\": {\n        \"name\": \"Sports Club Delhi\"\n    },\n    \"sport\": \"Football\",\n    \"start_date\": \"2025-09-15\",\n    \"end_date\": \"2025-09-17\",\n    \"venue_address\": \"Delhi Sports Complex\",\n    \"venue_link\": \"https://maps.google.com/...\",\n    \"ph_number\": \"9876543210\",\n    \"completed\": false,\n    \"categories\": [\n        {\n            \"id\": 1,\n            \"name\": \"U19 Boys\",\n            \"details\": \"Under 19 boys category\",\n            \"price\": \"500\",\n            \"tournament_id\": 1\n        }\n    ]\n}"
-								},
-								{
-									"name": "Tournament Not Found",
-									"originalRequest": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{base_url}}/tournament/999/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"tournament",
-												"999",
-												""
-											]
-										}
-									},
-									"status": "Not Found",
-									"code": 404,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"detail\": \"Not found.\"\n}"
-								}
-							]
-						},
-						{
-							"name": "Get Category Details",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/tournament/{{tournament_id}}/category/{{category_id}}/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"tournament",
-										"{{tournament_id}}",
-										"category",
-										"{{category_id}}",
-										""
-									]
-								},
-								"description": "Get detailed information about a specific category within a tournament, including teams, fixtures, etc."
-							},
-							"response": [
-								{
-									"name": "Successful Response",
-									"originalRequest": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{base_url}}/tournament/1/category/1/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"tournament",
-												"1",
-												"category",
-												"1",
-												""
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"id\": 1,\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys category\",\n    \"price\": \"500\",\n    \"tournament_id\": 1,\n    \"registration_open\": true,\n    \"teams\": [],\n    \"fixtures\": []\n}"
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "User Profile",
-					"item": [
-						{
-							"name": "Get User Profile",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for authentication"
-									}
-								],
-								"url": {
-									"raw": "{{base_url}}/profile/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"profile",
-										""
-									]
-								},
-								"description": "Get the profile information of the currently authenticated user. Requires authentication."
-							},
-							"response": [
-								{
-									"name": "Successful Response",
-									"originalRequest": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Authorization",
-												"value": "Bearer {{jwt_token}}",
-												"type": "text"
-											}
-										],
-										"url": {
-											"raw": "{{base_url}}/profile/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"profile",
-												""
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"id\": 1,\n    \"username\": \"johndoe\",\n    \"email\": \"john@example.com\",\n    \"is_organizer\": false\n}"
-								},
-								{
-									"name": "Unauthorized",
-									"originalRequest": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{base_url}}/profile/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"profile",
-												""
-											]
-										}
-									},
-									"status": "Unauthorized",
-									"code": 401,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"detail\": \"Authentication credentials were not provided.\"\n}"
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"name": "Organization APIs",
-			"item": [
-				{
-					"name": "Authentication & Validation",
-					"item": [
-						{
-							"name": "Validate Organization User",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for authentication"
-									}
-								],
-								"url": {
-									"raw": "{{base_url}}/org/org_auth/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"org_auth",
-										""
-									]
-								},
-								"description": "Validates organization user authentication and checks if they are an organizer. Returns user details and organization info if applicable."
-							},
-							"response": [
-								{
-									"name": "Authenticated Organizer",
-									"originalRequest": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Authorization",
-												"value": "Bearer {{jwt_token}}",
-												"type": "text"
-											}
-										],
-										"url": {
-											"raw": "{{base_url}}/org/org_auth/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"org",
-												"org_auth",
-												""
-											]
-										}
-									},
-									"status": "OK",
-									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"isAuthenticated\": true,\n    \"user\": {\n        \"id\": 1,\n        \"name\": \"John Organizer\",\n        \"email\": \"john@example.com\",\n        \"is_org\": true\n    },\n    \"organization\": {\n        \"id\": 1,\n        \"name\": \"Sports Club Delhi\",\n        \"mail\": \"contact@sportsclub.com\",\n        \"ph_number\": \"9876543210\"\n    }\n}"
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "Organization Management",
-					"item": [
-						{
-							"name": "Create Organization",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									},
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"name\": \"Sports Club Mumbai\",\n    \"mail\": \"contact@sportsclubmumbai.com\",\n    \"ph_number\": \"9876543210\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/org/create/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"create",
-										""
-									]
-								},
-								"description": "Create a new organization. Only authenticated organizers can create organizations, and each user can only have one organization."
-							},
-							"response": [
-								{
-									"name": "Organization Created Successfully",
-									"originalRequest": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Authorization",
-												"value": "Bearer {{jwt_token}}",
-												"type": "text"
-											},
-											{
-												"key": "Content-Type",
-												"value": "application/json",
-												"type": "text"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"name\": \"Sports Club Mumbai\",\n    \"mail\": \"contact@sportsclubmumbai.com\",\n    \"ph_number\": \"9876543210\"\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{base_url}}/org/create/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"org",
-												"create",
-												""
-											]
-										}
-									},
-									"status": "Created",
-									"code": 201,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"id\": 2,\n    \"name\": \"Sports Club Mumbai\",\n    \"admin\": 1,\n    \"mail\": \"contact@sportsclubmumbai.com\",\n    \"ph_number\": \"9876543210\"\n}"
-								},
-								{
-									"name": "Validation Error",
-									"originalRequest": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Authorization",
-												"value": "Bearer {{jwt_token}}",
-												"type": "text"
-											},
-											{
-												"key": "Content-Type",
-												"value": "application/json",
-												"type": "text"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"name\": \"\",\n    \"mail\": \"invalid-email\",\n    \"ph_number\": \"123\"\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{base_url}}/org/create/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"org",
-												"create",
-												""
-											]
-										}
-									},
-									"status": "Bad Request",
-									"code": 400,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"name\": [\"Name cannot be empty\"],\n    \"ph_number\": [\"Phone number should be 10 digits\"]\n}"
-								}
-							]
-						},
-						{
-							"name": "Get Organization Dashboard",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									}
-								],
-								"url": {
-									"raw": "{{base_url}}/org/dashboard/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"dashboard",
-										""
-									]
-								},
-								"description": "Get organization dashboard with tournaments and related data for the authenticated organizer."
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Tournament Management",
-					"item": [
-						{
-							"name": "Create Tournament",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									},
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"name\": \"Summer Championship 2025\",\n    \"details\": \"Annual summer football tournament for youth\",\n    \"organization\": 1,\n    \"start_date\": \"2025-09-15\",\n    \"end_date\": \"2025-09-17\",\n    \"venue_address\": \"Delhi Sports Complex, Sector 12, Delhi\",\n    \"venue_link\": \"https://maps.google.com/maps?q=Delhi+Sports+Complex\",\n    \"ph_number\": \"9876543210\",\n    \"sport\": 1\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/org/tournament/create/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"create",
-										""
-									]
-								},
-								"description": "Create a new tournament. Only authenticated organizers can create tournaments."
-							},
-							"response": [
-								{
-									"name": "Tournament Created Successfully",
-									"originalRequest": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Authorization",
-												"value": "Bearer {{jwt_token}}",
-												"type": "text"
-											},
-											{
-												"key": "Content-Type",
-												"value": "application/json",
-												"type": "text"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"name\": \"Summer Championship 2025\",\n    \"details\": \"Annual summer football tournament for youth\",\n    \"organization\": 1,\n    \"start_date\": \"2025-09-15\",\n    \"end_date\": \"2025-09-17\",\n    \"venue_address\": \"Delhi Sports Complex, Sector 12, Delhi\",\n    \"venue_link\": \"https://maps.google.com/maps?q=Delhi+Sports+Complex\",\n    \"ph_number\": \"9876543210\",\n    \"sport\": 1\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{base_url}}/org/tournament/create/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"org",
-												"tournament",
-												"create",
-												""
-											]
-										}
-									},
-									"status": "Created",
-									"code": 201,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"id\": 3,\n    \"name\": \"Summer Championship 2025\",\n    \"details\": \"Annual summer football tournament for youth\",\n    \"organization\": 1,\n    \"start_date\": \"2025-09-15\",\n    \"end_date\": \"2025-09-17\",\n    \"venue_address\": \"Delhi Sports Complex, Sector 12, Delhi\",\n    \"venue_link\": \"https://maps.google.com/maps?q=Delhi+Sports+Complex\",\n    \"ph_number\": \"9876543210\",\n    \"sport\": 1\n}"
-								}
-							]
-						},
-						{
-							"name": "Get Tournament Details",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									}
-								],
-								"url": {
-									"raw": "{{base_url}}/org/tournament/{{tournament_id}}/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"{{tournament_id}}",
-										""
-									]
-								},
-								"description": "Get detailed information about a specific tournament for organization management."
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Category Management",
-					"item": [
-						{
-							"name": "Create Category",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									},
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys football category\",\n    \"price\": \"500\",\n    \"tournament_id\": {{tournament_id}}\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/create/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"{{tournament_id}}",
-										"category",
-										"create",
-										""
-									]
-								},
-								"description": "Create a new category for a specific tournament."
-							},
-							"response": [
-								{
-									"name": "Category Created Successfully",
-									"originalRequest": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Authorization",
-												"value": "Bearer {{jwt_token}}",
-												"type": "text"
-											},
-											{
-												"key": "Content-Type",
-												"value": "application/json",
-												"type": "text"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys football category\",\n    \"price\": \"500\",\n    \"tournament_id\": 1\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{base_url}}/org/tournament/1/category/create/",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"org",
-												"tournament",
-												"1",
-												"category",
-												"create",
-												""
-											]
-										}
-									},
-									"status": "Created",
-									"code": 201,
-									"_postman_previewlanguage": "json",
-									"header": [],
-									"cookie": [],
-									"body": "{\n    \"id\": 1,\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys football category\",\n    \"price\": \"500\",\n    \"tournament_id\": 1,\n    \"registration_open\": false\n}"
-								}
-							]
-						},
-						{
-							"name": "Toggle Registration",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									}
-								],
-								"url": {
-									"raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/toggle-registration/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"{{tournament_id}}",
-										"category",
-										"{{category_id}}",
-										"toggle-registration",
-										""
-									]
-								},
-								"description": "Toggle registration status (open/closed) for a specific category."
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Team Management",
-					"item": [
-						{
-							"name": "Register Team",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									},
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"name\": \"Delhi Warriors\",\n    \"captain_name\": \"Rahul Sharma\",\n    \"captain_phone\": \"9876543210\",\n    \"captain_email\": \"rahul@example.com\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/team/create/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"{{tournament_id}}",
-										"category",
-										"{{category_id}}",
-										"team",
-										"create",
-										""
-									]
-								},
-								"description": "Register a new team for a specific category in a tournament."
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Fixture & Match Management",
-					"item": [
-						{
-							"name": "Create Fixture",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									},
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"fixture_type\": \"league\",\n    \"total_groups\": 2\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/fixture/create/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"{{tournament_id}}",
-										"category",
-										"{{category_id}}",
-										"fixture",
-										"create",
-										""
-									]
-								},
-								"description": "Create fixtures for a specific category. Can be league format or knockout format."
-							},
-							"response": []
-						},
-						{
-							"name": "Create Knockout Matches",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									},
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"qualified_teams\": [1, 2, 3, 4]\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/create_ko_matches/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"{{tournament_id}}",
-										"category",
-										"{{category_id}}",
-										"create_ko_matches",
-										""
-									]
-								},
-								"description": "Create knockout stage matches from qualified teams."
-							},
-							"response": []
-						},
-						{
-							"name": "Schedule Match",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									},
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"match_id\": 1,\n    \"date\": \"2025-09-15\",\n    \"time\": \"10:00\",\n    \"venue\": \"Ground A\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/schedule_match/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"{{tournament_id}}",
-										"category",
-										"{{category_id}}",
-										"schedule_match",
-										""
-									]
-								},
-								"description": "Schedule a specific match with date, time, and venue."
-							},
-							"response": []
-						},
-						{
-							"name": "Update Score",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									},
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"match_id\": 1,\n    \"team1_score\": 2,\n    \"team2_score\": 1,\n    \"match_status\": \"completed\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/update_score/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"{{tournament_id}}",
-										"category",
-										"{{category_id}}",
-										"update_score",
-										""
-									]
-								},
-								"description": "Update match scores and status."
-							},
-							"response": []
-						},
-						{
-							"name": "Get Fixture Details",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{jwt_token}}",
-										"type": "text",
-										"description": "Required: JWT token for organizer authentication"
-									}
-								],
-								"url": {
-									"raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/fixture/details/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"org",
-										"tournament",
-										"{{tournament_id}}",
-										"category",
-										"{{category_id}}",
-										"fixture",
-										"details",
-										""
-									]
-								},
-								"description": "Get detailed information about fixtures for a specific category."
-							},
-							"response": []
-						}
-					]
-				}
-			]
-		}
-	],
-	"event": [
-		{
-			"listen": "prerequest",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		},
-		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		}
-	],
-	"variable": [
-		{
-			"key": "base_url",
-			"value": "http://localhost:8000",
-			"type": "string",
-			"description": "Base URL for the API. Change this to your production URL when needed."
-		},
-		{
-			"key": "jwt_token",
-			"value": "your_jwt_token_here",
-			"type": "string",
-			"description": "JWT token for authentication. Get this from login response."
-		},
-		{
-			"key": "tournament_id",
-			"value": "1",
-			"type": "string",
-			"description": "Tournament ID for API calls requiring tournament context."
-		},
-		{
-			"key": "category_id",
-			"value": "1",
-			"type": "string",
-			"description": "Category ID for API calls requiring category context."
-		}
-	]
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "PlayPortal API Collection - Complete",
+    "description": "Complete API collection for PlayPortal Tournament Management System.\n\n🎯 FEATURES:\n- Authentication: JWT-based with register/login/Google OAuth\n- Tournament Management: Organizations, tournaments, categories, teams\n- Court Management: Create courts, assign matches, auto-queue system\n- Fixture Types: Knockout (KO), Round Robin (RR), Round Robin + Knockout (RR_KO)\n- Match Scheduling: Direct scheduling system (no brackets - deprecated)\n- Score Management: Real-time updates for set-based and simple scoring\n- Automatic Progression: Winner advancement, auto KO creation in RR_KO, court queue management\n\n🔐 AUTHENTICATION:\n- JWT Bearer token in Authorization header: Bearer <token>\n- Get token from: POST /auth/register/, /auth/login/, /auth/google/\n- Token expiration: 30 days (timezone-aware)\n- Field: 'is_organizer' for organizer status\n\n🏟️ FIXTURE TYPES:\n1. KO (Knockout): Single elimination - organizer creates matches with team pairings\n2. RR (Round Robin): All teams play each other - auto-generated matches\n3. RR_KO: Hybrid - RR phase (auto), then top 50% advance to KO (auto-created)\n\n⚽ SCORING TYPES:\n- Set-based: Volleyball, Badminton (best of N sets, first to X points)\n- Simple: Football, Hockey (single score per team)\n\n🎾 COURT SYSTEM:\n- Tournament-scoped with unique names\n- Auto-queue: Matches queue when court occupied\n- Auto-advance: Court advances to next queued match on completion\n\n🚀 WORKFLOW CHANGES (Oct 2025):\n- ❌ REMOVED: Bracket system (bracket_matches deprecated)\n- ✅ NEW: Direct match creation and scheduling\n- ✅ RR_KO: Automatic KO match creation when RR completes\n- ✅ Current phase tracking: 'round_robin' or 'knockout' (transition removed)\n- ✅ All matches managed through stage_number and match_number\n\n✅ VERIFIED: All endpoints tested and working (Oct 2025)\n- No errors in codebase\n- All 3 fixture types functional\n- Score updates with automatic progression\n- Court assignment and queue management operational",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12345678"
+  },
+  "item": [
+    {
+      "name": "Core APIs",
+      "item": [
+        {
+          "name": "Authentication",
+          "item": [
+            {
+              "name": "Check Authentication Status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "JWT token for authentication (Authorization: Bearer <token>)"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/check/",
+                  "host": ["{{base_url}}"],
+                  "path": ["auth", "check", ""]
+                },
+                "description": "Verifies if a user is authenticated by checking the JWT Bearer token in the Authorization header. Returns authentication status and user information."
+              },
+              "response": [
+                {
+                  "name": "Authenticated User",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/auth/check/",
+                      "host": ["{{base_url}}"],
+                      "path": ["auth", "check", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n    \"isAuthenticated\": true,\n    \"user\": {\n        \"id\": 1,\n        \"name\": \"John Doe\",\n        \"email\": \"john@example.com\",\n        \"is_organizer\": false\n    }\n}"
+                },
+                {
+                  "name": "Unauthenticated User",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/auth/check/",
+                      "host": ["{{base_url}}"],
+                      "path": ["auth", "check", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n    \"isAuthenticated\": false\n}"
+                }
+              ]
+            },
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"TestPass123!\",\n  \"password_confirm\": \"TestPass123!\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/register/",
+                  "host": ["{{base_url}}"],
+                  "path": ["auth", "register", ""]
+                },
+                "description": "Register a new user. Returns a JWT token and user object on success."
+              },
+              "response": [
+                {
+                  "name": "Registration Success",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": { "mode": "raw", "raw": "{...}" },
+                    "url": { "raw": "{{base_url}}/auth/register/" }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n  \"message\": \"Registration successful\",\n  \"token\": \"<JWT token>\",\n  \"user\": { \"id\": 1, \"username\": \"testuser\", \"email\": \"testuser@example.com\", \"is_organizer\": false }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Login (email/password)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"TestPass123!\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/login/",
+                  "host": ["{{base_url}}"],
+                  "path": ["auth", "login", ""]
+                },
+                "description": "Login with email and password. Response contains JWT token."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "  const res = pm.response.json();",
+                      "  if (res.token) { pm.environment.set('jwt_token', res.token); }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": [
+                {
+                  "name": "Login Success",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": { "mode": "raw", "raw": "{...}" },
+                    "url": { "raw": "{{base_url}}/auth/login/" }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n  \"message\": \"Login successful\",\n  \"token\": \"<JWT token>\",\n  \"user\": { \"id\": 1, \"username\": \"testuser\", \"email\": \"testuser@example.com\" }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Google Sign-in (ID token)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"credential\": \"<GOOGLE_ID_TOKEN>\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/google/",
+                  "host": ["{{base_url}}"],
+                  "path": ["auth", "google", ""]
+                },
+                "description": "Verify Google ID token on the server and sign in / create user. Returns JWT token on success."
+              },
+              "response": [
+                {
+                  "name": "Google Login Success",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": { "raw": "{{base_url}}/auth/google/" }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n  \"message\": \"Google authentication successful\",\n  \"token\": \"<JWT token>\",\n  \"user\": { \"id\": 1, \"username\": \"googleuser\", \"email\": \"googleuser@example.com\", \"is_organizer\": false }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/logout/",
+                  "host": ["{{base_url}}"],
+                  "path": ["auth", "logout", ""]
+                },
+                "description": "Logout user. With Bearer token authentication, logout is handled client-side by removing the token from storage."
+              },
+              "response": [
+                {
+                  "name": "Logout Success",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/auth/logout/",
+                      "host": ["{{base_url}}"],
+                      "path": ["auth", "logout", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n  \"message\": \"Logout successful\"\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Tournaments",
+          "item": [
+            {
+              "name": "Get Tournament List (Upcoming & Past)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/upcoming-past_tournaments/",
+                  "host": ["{{base_url}}"],
+                  "path": ["upcoming-past_tournaments", ""]
+                },
+                "description": "Get lists of upcoming tournaments (future start dates) and past tournaments (past end dates), limited to 4 of each."
+              },
+              "response": [
+                {
+                  "name": "Successful Response",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/upcoming-past_tournaments/",
+                      "host": ["{{base_url}}"],
+                      "path": ["upcoming-past_tournaments", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"upcoming_tournaments\": [\n        {\n            \"id\": 1,\n            \"name\": \"Summer Championship 2025\",\n            \"organization\": {\n                \"name\": \"Sports Club Delhi\"\n            },\n            \"start_date\": \"2025-09-15\",\n            \"end_date\": \"2025-09-17\",\n            \"venue_address\": \"Delhi Sports Complex\",\n            \"completed\": false\n        }\n    ],\n    \"past_tournaments\": [\n        {\n            \"id\": 2,\n            \"name\": \"Winter Cup 2024\",\n            \"organization\": {\n                \"name\": \"Mumbai Sports Association\"\n            },\n            \"start_date\": \"2024-12-01\",\n            \"end_date\": \"2024-12-03\",\n            \"venue_address\": \"Mumbai Stadium\",\n            \"completed\": true\n        }\n    ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Tournament Details",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/tournament/{{tournament_id}}/",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournament", "{{tournament_id}}", ""]
+                },
+                "description": "Get detailed information about a specific tournament, including categories, organization, dates, location, etc."
+              },
+              "response": [
+                {
+                  "name": "Successful Response",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/tournament/1/",
+                      "host": ["{{base_url}}"],
+                      "path": ["tournament", "1", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"id\": 1,\n    \"name\": \"Summer Championship 2025\",\n    \"details\": \"Annual summer tournament\",\n    \"organization\": {\n        \"name\": \"Sports Club Delhi\"\n    },\n    \"sport\": \"Football\",\n    \"start_date\": \"2025-09-15\",\n    \"end_date\": \"2025-09-17\",\n    \"venue_address\": \"Delhi Sports Complex\",\n    \"venue_link\": \"https://maps.google.com/...\",\n    \"ph_number\": \"9876543210\",\n    \"completed\": false,\n    \"categories\": [\n        {\n            \"id\": 1,\n            \"name\": \"U19 Boys\",\n            \"details\": \"Under 19 boys category\",\n            \"price\": \"500\",\n            \"tournament_id\": 1\n        }\n    ]\n}"
+                },
+                {
+                  "name": "Tournament Not Found",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/tournament/999/",
+                      "host": ["{{base_url}}"],
+                      "path": ["tournament", "999", ""]
+                    }
+                  },
+                  "status": "Not Found",
+                  "code": 404,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"detail\": \"Not found.\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Category Details",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/tournament/{{tournament_id}}/category/{{category_id}}/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    ""
+                  ]
+                },
+                "description": "Get detailed information about a specific category within a tournament, including teams, fixtures, etc."
+              },
+              "response": [
+                {
+                  "name": "Successful Response",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/tournament/1/category/1/",
+                      "host": ["{{base_url}}"],
+                      "path": ["tournament", "1", "category", "1", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"id\": 1,\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys category\",\n    \"price\": \"500\",\n    \"tournament_id\": 1,\n    \"registration_open\": true,\n    \"teams\": [],\n    \"fixtures\": []\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "User Profile",
+          "item": [
+            {
+              "name": "Get User Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/profile/",
+                  "host": ["{{base_url}}"],
+                  "path": ["profile", ""]
+                },
+                "description": "Get the profile information of the currently authenticated user. Requires authentication."
+              },
+              "response": [
+                {
+                  "name": "Successful Response",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/profile/",
+                      "host": ["{{base_url}}"],
+                      "path": ["profile", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"id\": 1,\n    \"username\": \"johndoe\",\n    \"email\": \"john@example.com\",\n    \"is_organizer\": false\n}"
+                },
+                {
+                  "name": "Unauthorized",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/profile/",
+                      "host": ["{{base_url}}"],
+                      "path": ["profile", ""]
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"detail\": \"Authentication credentials were not provided.\"\n}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Organization APIs",
+      "item": [
+        {
+          "name": "Authentication & Validation",
+          "item": [
+            {
+              "name": "Validate Organization User",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/org/org_auth/",
+                  "host": ["{{base_url}}"],
+                  "path": ["org", "org_auth", ""]
+                },
+                "description": "Validates organization user authentication and checks if they are an organizer. Returns user details and organization info if applicable."
+              },
+              "response": [
+                {
+                  "name": "Authenticated Organizer",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/org/org_auth/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "org_auth", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"isAuthenticated\": true,\n    \"user\": {\n        \"id\": 1,\n        \"name\": \"John Organizer\",\n        \"email\": \"john@example.com\",\n        \"is_organizer\": true\n    },\n    \"organization\": {\n        \"id\": 1,\n        \"name\": \"Sports Club Delhi\",\n        \"mail\": \"contact@sportsclub.com\",\n        \"ph_number\": \"9876543210\"\n    }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Organization Management",
+          "item": [
+            {
+              "name": "Create Organization",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Sports Club Mumbai\",\n    \"mail\": \"contact@sportsclubmumbai.com\",\n    \"ph_number\": \"9876543210\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/create/",
+                  "host": ["{{base_url}}"],
+                  "path": ["org", "create", ""]
+                },
+                "description": "Create a new organization. Only authenticated organizers can create organizations, and each user can only have one organization."
+              },
+              "response": [
+                {
+                  "name": "Organization Created Successfully",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\": \"Sports Club Mumbai\",\n    \"mail\": \"contact@sportsclubmumbai.com\",\n    \"ph_number\": \"9876543210\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/create/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "create", ""]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"id\": 2,\n    \"name\": \"Sports Club Mumbai\",\n    \"admin\": 1,\n    \"mail\": \"contact@sportsclubmumbai.com\",\n    \"ph_number\": \"9876543210\"\n}"
+                },
+                {
+                  "name": "Validation Error",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\": \"\",\n    \"mail\": \"invalid-email\",\n    \"ph_number\": \"123\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/create/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "create", ""]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"name\": [\"Name cannot be empty\"],\n    \"ph_number\": [\"Phone number should be 10 digits\"]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Organization Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/org/dashboard/",
+                  "host": ["{{base_url}}"],
+                  "path": ["org", "dashboard", ""]
+                },
+                "description": "Get organization dashboard with tournaments and related data for the authenticated organizer."
+              },
+              "response": [
+                {
+                  "name": "Dashboard Data Success",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/org/dashboard/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "dashboard", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"organization\": {\n        \"id\": 1,\n        \"name\": \"Sports Club Delhi\",\n        \"mail\": \"contact@sportsclub.com\",\n        \"ph_number\": \"9876543210\"\n    },\n    \"upcoming_tournaments\": [\n        {\n            \"id\": 1,\n            \"name\": \"Summer Championship 2025\",\n            \"start_date\": \"2025-09-15\",\n            \"end_date\": \"2025-09-17\"\n        }\n    ],\n    \"past_tournaments\": [\n        {\n            \"id\": 2,\n            \"name\": \"Winter Cup 2024\",\n            \"start_date\": \"2024-12-01\",\n            \"end_date\": \"2024-12-03\"\n        }\n    ]\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Tournament Management",
+          "item": [
+            {
+              "name": "Create Tournament",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Summer Championship 2025\",\n    \"details\": \"Annual summer football tournament for youth\",\n    \"organization\": 1,\n    \"start_date\": \"2025-09-15\",\n    \"end_date\": \"2025-09-17\",\n    \"venue_address\": \"Delhi Sports Complex, Sector 12, Delhi\",\n    \"venue_link\": \"https://maps.google.com/maps?q=Delhi+Sports+Complex\",\n    \"ph_number\": \"9876543210\",\n    \"sport\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/create/",
+                  "host": ["{{base_url}}"],
+                  "path": ["org", "tournament", "create", ""]
+                },
+                "description": "Create a new tournament. Only authenticated organizers can create tournaments."
+              },
+              "response": [
+                {
+                  "name": "Tournament Created Successfully",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\": \"Summer Championship 2025\",\n    \"details\": \"Annual summer football tournament for youth\",\n    \"organization\": 1,\n    \"start_date\": \"2025-09-15\",\n    \"end_date\": \"2025-09-17\",\n    \"venue_address\": \"Delhi Sports Complex, Sector 12, Delhi\",\n    \"venue_link\": \"https://maps.google.com/maps?q=Delhi+Sports+Complex\",\n    \"ph_number\": \"9876543210\",\n    \"sport\": 1\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/create/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "tournament", "create", ""]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"id\": 3,\n    \"name\": \"Summer Championship 2025\",\n    \"details\": \"Annual summer football tournament for youth\",\n    \"organization\": 1,\n    \"start_date\": \"2025-09-15\",\n    \"end_date\": \"2025-09-17\",\n    \"venue_address\": \"Delhi Sports Complex, Sector 12, Delhi\",\n    \"venue_link\": \"https://maps.google.com/maps?q=Delhi+Sports+Complex\",\n    \"ph_number\": \"9876543210\",\n    \"sport\": 1\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Tournament Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/",
+                  "host": ["{{base_url}}"],
+                  "path": ["org", "tournament", "{{tournament_id}}", ""]
+                },
+                "description": "Get detailed information about a specific tournament for organization management."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Category Management",
+          "item": [
+            {
+              "name": "Create Category",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys football category\",\n    \"price\": \"500\",\n    \"tournament_id\": {{tournament_id}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/create/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "create",
+                    ""
+                  ]
+                },
+                "description": "Create a new category for a specific tournament."
+              },
+              "response": [
+                {
+                  "name": "Category Created Successfully",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys football category\",\n    \"price\": \"500\",\n    \"tournament_id\": 1\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/create/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "create",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n    \"id\": 1,\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys football category\",\n    \"price\": \"500\",\n    \"tournament_id\": 1,\n    \"registration_open\": false\n}"
+                }
+              ]
+            },
+            {
+              "name": "Toggle Registration",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/toggle-registration/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "toggle-registration",
+                    ""
+                  ]
+                },
+                "description": "Toggle registration status (open/closed) for a specific category."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Team Management",
+          "item": [
+            {
+              "name": "Register Team (4 Teams Example)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Delhi Warriors\",\n    \"captain_name\": \"Rahul Sharma\",\n    \"captain_phone\": \"9876543210\",\n    \"captain_email\": \"rahul@delhiwarriors.com\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/team/create/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "team",
+                    "create",
+                    ""
+                  ]
+                },
+                "description": "Register teams for a specific category. For testing with 4 teams, create: Delhi Warriors, Bangalore Tigers, Chennai Knights, Mumbai Eagles."
+              },
+              "response": [
+                {
+                  "name": "Team 1 - Delhi Warriors",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\": \"Delhi Warriors\",\n    \"captain_name\": \"Rahul Sharma\",\n    \"captain_phone\": \"9876543210\",\n    \"captain_email\": \"rahul@delhiwarriors.com\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/1/team/create/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "1",
+                        "team",
+                        "create",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"id\": 1,\n  \"name\": \"Delhi Warriors\",\n  \"captain_name\": \"Rahul Sharma\",\n  \"captain_phone\": \"9876543210\",\n  \"captain_email\": \"rahul@delhiwarriors.com\",\n  \"category\": 1,\n  \"tournament\": 1\n}"
+                },
+                {
+                  "name": "Team 2 - Bangalore Tigers",
+                  "originalRequest": {
+                    "method": "POST",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\": \"Bangalore Tigers\",\n    \"captain_name\": \"Priya Nair\",\n    \"captain_phone\": \"9876543211\",\n    \"captain_email\": \"priya@bangaloretigers.com\"\n}"
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"id\": 2,\n  \"name\": \"Bangalore Tigers\",\n  \"captain_name\": \"Priya Nair\",\n  \"captain_phone\": \"9876543211\",\n  \"captain_email\": \"priya@bangaloretigers.com\",\n  \"category\": 1,\n  \"tournament\": 1\n}"
+                },
+                {
+                  "name": "Team 3 - Chennai Knights",
+                  "originalRequest": {
+                    "method": "POST",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\": \"Chennai Knights\",\n    \"captain_name\": \"Arjun Kumar\",\n    \"captain_phone\": \"9876543212\",\n    \"captain_email\": \"arjun@chennaiknights.com\"\n}"
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"id\": 3,\n  \"name\": \"Chennai Knights\",\n  \"captain_name\": \"Arjun Kumar\",\n  \"captain_phone\": \"9876543212\",\n  \"captain_email\": \"arjun@chennaiknights.com\",\n  \"category\": 1,\n  \"tournament\": 1\n}"
+                },
+                {
+                  "name": "Team 4 - Mumbai Eagles",
+                  "originalRequest": {
+                    "method": "POST",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\": \"Mumbai Eagles\",\n    \"captain_name\": \"Sneha Patel\",\n    \"captain_phone\": \"9876543213\",\n    \"captain_email\": \"sneha@mumbaieagles.com\"\n}"
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"id\": 4,\n  \"name\": \"Mumbai Eagles\",\n  \"captain_name\": \"Sneha Patel\",\n  \"captain_phone\": \"9876543213\",\n  \"captain_email\": \"sneha@mumbaieagles.com\",\n  \"category\": 1,\n  \"tournament\": 1\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Court Management",
+          "item": [
+            {
+              "name": "List Courts",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/courts/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "courts",
+                    ""
+                  ]
+                },
+                "description": "List all courts for a specific tournament owned by the organizer. Shows court availability, current matches, and queue information."
+              },
+              "response": [
+                {
+                  "name": "Courts List Success",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/courts/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "tournament", "1", "courts", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"courts\": [\n    {\n      \"id\": 1,\n      \"name\": \"Court 1\",\n      \"tournament\": 1,\n      \"current_match\": {\n        \"id\": 5,\n        \"team1_name\": \"Delhi Warriors\",\n        \"team2_name\": \"Bangalore Tigers\",\n        \"category_name\": \"U19 Boys\",\n        \"stage\": \"Quarter Final\",\n        \"match_number\": 1\n      },\n      \"upcoming_matches_count\": 2,\n      \"upcoming_matches\": [\n        {\n          \"id\": 6,\n          \"team1_name\": \"Chennai Knights\",\n          \"team2_name\": \"Wano Warriors\"\n        }\n      ],\n      \"is_available\": false\n    },\n    {\n      \"id\": 2,\n      \"name\": \"Court 2\",\n      \"tournament\": 1,\n      \"current_match\": null,\n      \"upcoming_matches_count\": 0,\n      \"upcoming_matches\": [],\n      \"is_available\": true\n    }\n  ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Create Court",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Court 3\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/new_courts/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "new_courts",
+                    ""
+                  ]
+                },
+                "description": "Create a new court for a specific tournament. Court names must be unique within each tournament."
+              },
+              "response": [
+                {
+                  "name": "Court Created Successfully",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"name\": \"Court 3\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/new_courts/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "tournament", "1", "new_courts", ""]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"id\": 3,\n  \"name\": \"Court 3\",\n  \"tournament\": 1,\n  \"current_match\": null,\n  \"upcoming_matches_count\": 0,\n  \"upcoming_matches\": [],\n  \"is_available\": true\n}"
+                },
+                {
+                  "name": "Duplicate Court Name Error",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"name\": \"Court 1\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/new_courts/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "tournament", "1", "new_courts", ""]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"name\": [\"Court with this name already exists in this tournament\"]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Court Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/org/courts/{{court_id}}/",
+                  "host": ["{{base_url}}"],
+                  "path": ["org", "courts", "{{court_id}}", ""]
+                },
+                "description": "Get detailed information about a specific court including current match, queue status, and upcoming matches."
+              },
+              "response": [
+                {
+                  "name": "Court Details Success",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/org/courts/1/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "courts", "1", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"id\": 1,\n  \"name\": \"Court 1\",\n  \"tournament\": 1,\n  \"current_match\": {\n    \"id\": 5,\n    \"team1_name\": \"Delhi Warriors\",\n    \"team2_name\": \"Bangalore Tigers\",\n    \"category_name\": \"U19 Boys\",\n    \"stage\": \"Quarter Final\",\n    \"match_number\": 1\n  },\n  \"upcoming_matches_count\": 2,\n  \"upcoming_matches\": [\n    {\n      \"id\": 6,\n      \"team1_name\": \"Chennai Knights\",\n      \"team2_name\": \"Wano Warriors\",\n      \"category_name\": \"U19 Boys\",\n      \"stage\": \"Semi Final\",\n      \"match_number\": 1\n    },\n    {\n      \"id\": 7,\n      \"team1_name\": \"Mumbai Eagles\",\n      \"team2_name\": \"Pune Panthers\",\n      \"category_name\": \"U19 Boys\",\n      \"stage\": \"Semi Final\",\n      \"match_number\": 2\n    }\n  ],\n  \"is_available\": false\n}"
+                }
+              ]
+            },
+            {
+              "name": "Update Court",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Center Court\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/courts/{{court_id}}/",
+                  "host": ["{{base_url}}"],
+                  "path": ["org", "courts", "{{court_id}}", ""]
+                },
+                "description": "Update court details (currently only name can be updated). Name must be unique within the tournament."
+              },
+              "response": [
+                {
+                  "name": "Court Updated Successfully",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"name\": \"Center Court\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/courts/1/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "courts", "1", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"id\": 1,\n  \"name\": \"Center Court\",\n  \"tournament\": 1,\n  \"current_match\": null,\n  \"upcoming_matches_count\": 0,\n  \"upcoming_matches\": [],\n  \"is_available\": true\n}"
+                }
+              ]
+            },
+            {
+              "name": "Delete Court",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/org/courts/{{court_id}}/",
+                  "host": ["{{base_url}}"],
+                  "path": ["org", "courts", "{{court_id}}", ""]
+                },
+                "description": "Delete a court. Only allowed if no current match is being played and no upcoming matches are queued."
+              },
+              "response": [
+                {
+                  "name": "Court Deleted Successfully",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/org/courts/2/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "courts", "2", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Court deleted\"\n}"
+                },
+                {
+                  "name": "Court Deletion Blocked",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/org/courts/1/",
+                      "host": ["{{base_url}}"],
+                      "path": ["org", "courts", "1", ""]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"error\": \"Court cannot be deleted while matches are assigned\"\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Fixture & Match Management",
+          "item": [
+            {
+              "name": "Create Fixture - Knockout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fixture_type\": \"KO\",\n  \"no_of_sets\": 3,\n  \"points_to_win\": 15\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/fixture/create/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "fixture",
+                    "create",
+                    ""
+                  ]
+                },
+                "description": "Create a Knockout fixture for a category. Only creates the fixture container. Matches must be created separately using create_ko_matches endpoint."
+              },
+              "response": [
+                {
+                  "name": "Knockout Fixture Created",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fixture_type\": \"KO\",\n  \"no_of_sets\": 3,\n  \"points_to_win\": 15\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/1/fixture/create/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "1",
+                        "fixture",
+                        "create",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"fixture\": {\n    \"id\": 1,\n    \"type\": \"KO\",\n    \"category\": \"U19 Boys\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Create Fixture - Round Robin",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fixtureType\": \"RR\",\n  \"no_of_rounds\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/fixture/create/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "fixture",
+                    "create",
+                    ""
+                  ]
+                },
+                "description": "Create a Round Robin fixture for a category. Automatically creates all matches where each team plays every other team. Matches are immediately available for scheduling."
+              },
+              "response": [
+                {
+                  "name": "Round Robin Fixture Created",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fixture_type\": \"RR\",\n  \"no_of_rounds\": 1,\n  \"no_of_sets\": 3,\n  \"points_to_win\": 21\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/2/fixture/create/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "2",
+                        "fixture",
+                        "create",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Round Robin fixture created successfully\",\n  \"fixture\": {\n    \"id\": 3,\n    \"fixture_name\": \"Round Robin Championship\",\n    \"fixture_type\": \"RR\",\n    \"total_rounds\": 1,\n    \"tournament\": {\n      \"id\": 1,\n      \"name\": \"City Championship\",\n      \"sport\": \"Football\"\n    },\n    \"category\": {\n      \"id\": 2,\n      \"name\": \"Men's Open\",\n      \"scoring_type\": \"simple\"\n    },\n    \"teams\": [\n      {\n        \"id\": 1,\n        \"name\": \"Delhi Warriors\",\n        \"captain\": \"Raj Kumar\",\n        \"phone\": \"+91-9876543210\"\n      },\n      {\n        \"id\": 2,\n        \"name\": \"Bangalore Tigers\",\n        \"captain\": \"Arjun Singh\",\n        \"phone\": \"+91-9876543211\"\n      },\n      {\n        \"id\": 3,\n        \"name\": \"Chennai Knights\",\n        \"captain\": \"Vikram Patel\",\n        \"phone\": \"+91-9876543212\"\n      },\n      {\n        \"id\": 4,\n        \"name\": \"Mumbai Eagles\",\n        \"captain\": \"Rohit Sharma\",\n        \"phone\": \"+91-9876543213\"\n      }\n    ],\n    \"matches\": [\n      {\n        \"id\": 7,\n        \"round\": 1,\n        \"match_number\": 1,\n        \"team1\": \"Delhi Warriors\",\n        \"team2\": \"Bangalore Tigers\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court A\",\n        \"time_slot\": \"09:00-10:00\"\n      },\n      {\n        \"id\": 8,\n        \"round\": 1,\n        \"match_number\": 2,\n        \"team1\": \"Chennai Knights\",\n        \"team2\": \"Mumbai Eagles\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court B\",\n        \"time_slot\": \"09:00-10:00\"\n      },\n      {\n        \"id\": 9,\n        \"round\": 1,\n        \"match_number\": 3,\n        \"team1\": \"Delhi Warriors\",\n        \"team2\": \"Chennai Knights\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court A\",\n        \"time_slot\": \"10:00-11:00\"\n      },\n      {\n        \"id\": 10,\n        \"round\": 1,\n        \"match_number\": 4,\n        \"team1\": \"Bangalore Tigers\",\n        \"team2\": \"Mumbai Eagles\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court B\",\n        \"time_slot\": \"10:00-11:00\"\n      },\n      {\n        \"id\": 11,\n        \"round\": 1,\n        \"match_number\": 5,\n        \"team1\": \"Delhi Warriors\",\n        \"team2\": \"Mumbai Eagles\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court A\",\n        \"time_slot\": \"11:00-12:00\"\n      },\n      {\n        \"id\": 12,\n        \"round\": 1,\n        \"match_number\": 6,\n        \"team1\": \"Bangalore Tigers\",\n        \"team2\": \"Chennai Knights\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court B\",\n        \"time_slot\": \"11:00-12:00\"\n      }\n    ],\n    \"scoring_system\": {\n      \"type\": \"simple\",\n      \"description\": \"Single score per team. Higher score wins.\",\n      \"point_system\": {\n        \"win\": 3,\n        \"draw\": 1,\n        \"loss\": 0\n      }\n    },\n    \"standings\": {\n      \"table\": [\n        {\n          \"position\": 1,\n          \"team\": \"Delhi Warriors\",\n          \"played\": 0,\n          \"won\": 0,\n          \"drawn\": 0,\n          \"lost\": 0,\n          \"points\": 0,\n          \"goals_for\": 0,\n          \"goals_against\": 0,\n          \"goal_difference\": 0\n        },\n        {\n          \"position\": 2,\n          \"team\": \"Bangalore Tigers\",\n          \"played\": 0,\n          \"won\": 0,\n          \"drawn\": 0,\n          \"lost\": 0,\n          \"points\": 0,\n          \"goals_for\": 0,\n          \"goals_against\": 0,\n          \"goal_difference\": 0\n        },\n        {\n          \"position\": 3,\n          \"team\": \"Chennai Knights\",\n          \"played\": 0,\n          \"won\": 0,\n          \"drawn\": 0,\n          \"lost\": 0,\n          \"points\": 0,\n          \"goals_for\": 0,\n          \"goals_against\": 0,\n          \"goal_difference\": 0\n        },\n        {\n          \"position\": 4,\n          \"team\": \"Mumbai Eagles\",\n          \"played\": 0,\n          \"won\": 0,\n          \"drawn\": 0,\n          \"lost\": 0,\n          \"points\": 0,\n          \"goals_for\": 0,\n          \"goals_against\": 0,\n          \"goal_difference\": 0\n        }\n      ]\n    },\n    \"matches_per_round\": 6,\n    \"total_matches\": 6,\n    \"fixture_complete\": false,\n    \"winner\": null\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Create Fixture - Round Robin + Knockout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fixture_type\": \"RR_KO\",\n  \"no_of_rounds\": 1,\n  \"no_of_sets\": 5,\n  \"points_to_win\": 11,\n  \"knockout_qualifier_count\": 2\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/fixture/create/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "fixture",
+                    "create",
+                    ""
+                  ]
+                },
+                "description": "Create a Round Robin + Knockout fixture. Teams first play in a round robin format, then top teams qualify for knockout stage."
+              },
+              "response": [
+                {
+                  "name": "Round Robin + Knockout Fixture Created",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fixture_type\": \"RR_KO\",\n  \"no_of_rounds\": 1,\n  \"no_of_sets\": 5,\n  \"points_to_win\": 11,\n  \"knockout_qualifier_count\": 2\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/3/fixture/create/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "3",
+                        "fixture",
+                        "create",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"fixture\": {\n    \"id\": 3,\n    \"type\": \"RR_KO\",\n    \"category\": \"Mixed Doubles\"\n  },\n  \"message\": \"Round Robin phase created. Top 50% will auto-qualify for Knockout when RR completes.\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "Create Knockout Matches - Set-based Scoring",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"matches\": [\n    {\"team_1\": 1, \"team_2\": 2},\n    {\"team_1\": 3, \"team_2\": 4}\n  ],\n  \"no_sets\": 3,\n  \"points_win\": 21\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/create_ko_matches/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "create_ko_matches",
+                    ""
+                  ]
+                },
+                "description": "Create knockout matches with organizer-selected team pairings for set-based sports (volleyball/badminton). Organizer decides first round matchups. System automatically creates all rounds including semi-finals and finals with TBD placeholders for future matches. Winners progress automatically."
+              },
+              "response": [
+                {
+                  "name": "Set-based Knockout Matches Created",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"matches\": [\n    {\"team_1\": 1, \"team_2\": 2},\n    {\"team_1\": 3, \"team_2\": 4}\n  ],\n  \"no_sets\": 3,\n  \"points_win\": 21\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/1/create_ko_matches/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "1",
+                        "create_ko_matches",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Knockout matches created successfully\",\n  \"matches_created\": 3,\n  \"immediately_schedulable\": 2\n}"
+                }
+              ]
+            },
+            {
+              "name": "Create Knockout Matches - Simple Scoring",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"matches\": [\n    {\"team_1\": 1, \"team_2\": 2},\n    {\"team_1\": 3, \"team_2\": 4}\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/create_ko_matches/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "create_ko_matches",
+                    ""
+                  ]
+                },
+                "description": "Create knockout stage matches with simple scoring (e.g., football, hockey). Organizer decides team pairings. Single score per team, highest score wins. System creates all rounds including semi-finals and finals with TBD placeholders for future matches.\n\nIMPORTANT: You must provide team pairings in the 'matches' array. For simple scoring sports, no_sets and points_win are not required."
+              },
+              "response": [
+                {
+                  "name": "Simple Scoring Knockout Matches Created",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"matches\": [\n    {\"team_1\": 1, \"team_2\": 2},\n    {\"team_1\": 3, \"team_2\": 4}\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/2/create_ko_matches/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "2",
+                        "create_ko_matches",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Knockout matches created successfully\",\n  \"matches_created\": 3,\n  \"immediately_schedulable\": 2\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Available Matches for Scheduling",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/schedule_match/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "schedule_match",
+                    ""
+                  ]
+                },
+                "description": "Get all matches available for scheduling from the fixture. Shows matches that can be assigned to courts. For KO fixtures, returns matches where both teams are assigned (not TBD). For RR fixtures, returns all matches."
+              },
+              "response": [
+                {
+                  "name": "Available Matches Success",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/1/schedule_match/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "1",
+                        "schedule_match",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"fixture_type\": \"KO\",\n  \"available_matches\": [\n    {\n      \"id\": 1,\n      \"team1\": \"Delhi Warriors\",\n      \"team2\": \"Bangalore Tigers\",\n      \"category\": \"U19 Boys\",\n      \"stage\": \"Quarter Final\",\n      \"match_number\": 1,\n      \"status\": \"pending\"\n    },\n    {\n      \"id\": 2,\n      \"team1\": \"Chennai Knights\",\n      \"team2\": \"Wano Warriors\",\n      \"category\": \"U19 Boys\",\n      \"stage\": \"Quarter Final\",\n      \"match_number\": 2,\n      \"status\": \"pending\"\n    }\n  ],\n  \"total_matches\": 7\n}"
+                }
+              ]
+            },
+            {
+              "name": "Schedule Match",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"match_id\": 1,\n  \"court_id\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/schedule_match/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "schedule_match",
+                    ""
+                  ]
+                },
+                "description": "Schedule a match from the fixture with optional court assignment. Supports auto-queue functionality - if court is occupied, match is automatically added to court's queue. Match must have both teams assigned (not TBD)."
+              },
+              "response": [
+                {
+                  "name": "Match Scheduled to Available Court",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"match_id\": 1,\n  \"court_id\": 2\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/1/schedule_match/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "1",
+                        "schedule_match",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Match scheduled successfully on Court 2\",\n  \"match\": {\n    \"id\": 1,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"category\": \"U19 Boys\",\n    \"stage\": \"Quarter Final\",\n    \"status\": \"scheduled\"\n  },\n  \"court\": {\n    \"id\": 2,\n    \"name\": \"Court 2\",\n    \"tournament\": 1\n  },\n  \"position\": \"current\",\n  \"queue_position\": null,\n  \"next_available_matches\": 3\n}"
+                },
+                {
+                  "name": "Match Queued (Court Occupied)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"match_id\": 2,\n  \"court_id\": 1\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/1/schedule_match/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "1",
+                        "schedule_match",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Match scheduled and queued for Court 1 (position 2)\",\n  \"match\": {\n    \"id\": 2,\n    \"team1\": \"Chennai Knights\",\n    \"team2\": \"Wano Warriors\",\n    \"category\": \"U19 Boys\",\n    \"stage\": \"Quarter Final\",\n    \"status\": \"scheduled\"\n  },\n  \"court\": {\n    \"id\": 1,\n    \"name\": \"Court 1\",\n    \"tournament\": 1\n  },\n  \"position\": \"queued\",\n  \"queue_position\": 2,\n  \"next_available_matches\": 2\n}"
+                },
+                {
+                  "name": "Match Scheduled Without Court",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"match_id\": 3\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/1/schedule_match/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "1",
+                        "schedule_match",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Match scheduled successfully (no court assigned)\",\n  \"match\": {\n    \"id\": 3,\n    \"team1\": \"Mumbai Eagles\",\n    \"team2\": \"Pune Panthers\",\n    \"category\": \"U19 Boys\",\n    \"stage\": \"Semi Final\",\n    \"status\": \"scheduled\"\n  },\n  \"next_available_matches\": 1\n}"
+                }
+              ]
+            },
+            {
+              "name": "Update Score - Set-based Scoring",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"match_id\": 1,\n  \"action\": \"increment\",\n  \"team_id\": 1,\n  \"set_number\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/update_score/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "update_score",
+                    ""
+                  ]
+                },
+                "description": "Update score for set-based matches (e.g., volleyball, badminton). Each set is scored separately, first team to reach points_to_win wins the set."
+              },
+              "response": [
+                {
+                  "name": "Set Score Updated",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"match_id\": 1,\n  \"action\": \"increment\",\n  \"team_id\": 1,\n  \"set_number\": 1\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/1/update_score/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "1",
+                        "update_score",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Score updated successfully\",\n  \"match\": {\n    \"id\": 1,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"status\": \"ongoing\",\n    \"current_set\": 1\n  },\n  \"set_scores\": [\n    {\n      \"set_number\": 1,\n      \"team1_points\": 15,\n      \"team2_points\": 12,\n      \"winner\": null,\n      \"set_complete\": false\n    }\n  ],\n  \"match_winner\": null,\n  \"sets_won\": {\n    \"team1\": 0,\n    \"team2\": 0\n  }\n}"
+                },
+                {
+                  "name": "Set Won - Match Continues",
+                  "originalRequest": {
+                    "method": "POST",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"match_id\": 1,\n  \"action\": \"increment\",\n  \"team_id\": 1,\n  \"set_number\": 1\n}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Set won by Delhi Warriors! Moving to Set 2\",\n  \"match\": {\n    \"id\": 1,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"status\": \"ongoing\",\n    \"current_set\": 2\n  },\n  \"set_scores\": [\n    {\n      \"set_number\": 1,\n      \"team1_points\": 21,\n      \"team2_points\": 18,\n      \"winner\": \"Delhi Warriors\",\n      \"set_complete\": true\n    },\n    {\n      \"set_number\": 2,\n      \"team1_points\": 0,\n      \"team2_points\": 0,\n      \"winner\": null,\n      \"set_complete\": false\n    }\n  ],\n  \"match_winner\": null,\n  \"sets_won\": {\n    \"team1\": 1,\n    \"team2\": 0\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Update Score - Simple Scoring",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"match_id\": 4,\n  \"action\": \"increment\",\n  \"team_id\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/update_score/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "update_score",
+                    ""
+                  ]
+                },
+                "description": "Update score for simple scoring matches (e.g., football, hockey). Single score per team, higher score wins the match."
+              },
+              "response": [
+                {
+                  "name": "Simple Score Updated",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"match_id\": 4,\n  \"action\": \"increment\",\n  \"team_id\": 1\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/org/tournament/1/category/2/update_score/",
+                      "host": ["{{base_url}}"],
+                      "path": [
+                        "org",
+                        "tournament",
+                        "1",
+                        "category",
+                        "2",
+                        "update_score",
+                        ""
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Score updated successfully\",\n  \"match\": {\n    \"id\": 4,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"status\": \"ongoing\"\n  },\n  \"simple_score\": {\n    \"team1_score\": 2,\n    \"team2_score\": 1\n  },\n  \"match_winner\": null\n}"
+                },
+                {
+                  "name": "Match Completed - Simple Scoring",
+                  "originalRequest": {
+                    "method": "POST",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"match_id\": 4,\n  \"action\": \"finish_match\",\n  \"final_scores\": {\n    \"team1_score\": 3,\n    \"team2_score\": 1\n  }\n}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Match completed! Delhi Warriors wins 3-1\",\n  \"match\": {\n    \"id\": 4,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"status\": \"completed\",\n    \"winner\": \"Delhi Warriors\"\n  },\n  \"simple_score\": {\n    \"team1_score\": 3,\n    \"team2_score\": 1\n  },\n  \"match_winner\": \"Delhi Warriors\",\n  \"next_match_updated\": true,\n  \"advancement\": {\n    \"message\": \"Delhi Warriors advances to Final\",\n    \"next_match_id\": 6\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Get Fixture Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text",
+                    "description": "Required: JWT token for organizer authentication"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/org/tournament/{{tournament_id}}/category/{{category_id}}/fixture/details/",
+                  "host": ["{{base_url}}"],
+                  "path": [
+                    "org",
+                    "tournament",
+                    "{{tournament_id}}",
+                    "category",
+                    "{{category_id}}",
+                    "fixture",
+                    "details",
+                    ""
+                  ]
+                },
+                "description": "Get detailed information about fixtures for a specific category."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Base URL for the API. Change this to your production URL when needed."
+    },
+    {
+      "key": "jwt_token",
+      "value": "your_jwt_token_here",
+      "type": "string",
+      "description": "JWT token for authentication. Get this from login response."
+    },
+    {
+      "key": "tournament_id",
+      "value": "1",
+      "type": "string",
+      "description": "Tournament ID for API calls requiring tournament context."
+    },
+    {
+      "key": "category_id",
+      "value": "1",
+      "type": "string",
+      "description": "Category ID for API calls requiring category context."
+    },
+    {
+      "key": "court_id",
+      "value": "1",
+      "type": "string",
+      "description": "Court ID for API calls requiring court context."
+    }
+  ]
 }

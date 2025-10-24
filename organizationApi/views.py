@@ -8,11 +8,36 @@ from .serializers import *
 from .models import Organization, Category, Team, Match, SetScore, SimpleScore, Court, Tournament
 from coreApi.models import User
 from django.db import transaction
-from .utils import KoGen, ScoreManager
+from .utils import KoGen, ScoreManager, KoGenContentSwap
 import math
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+# Helper Functions
+def build_match_completion_response(match, available_matches=0, tournament_completed=False, **extra):
+    """
+    Build standardized match completion response.
+    
+    Args:
+        match: Match instance that was completed
+        available_matches: Number of new matches ready for scheduling
+        tournament_completed: Boolean indicating if tournament is finished
+        **extra: Additional fields to include in response
+    
+    Returns:
+        dict: Standardized response dictionary
+    """
+    response = {
+        'match_completed': match.match_state,
+        'winner': match.winner.name if match.winner else None,
+        'next_matches_available': available_matches,
+        'tournament_completed': tournament_completed
+    }
+    response.update(extra)
+    return response
+
 
 # Create your views here.
 
@@ -345,7 +370,6 @@ def org_dashboard(request):
         - upcoming_tournaments: List of upcoming tournaments
         - past_tournaments: List of past tournaments
     """
-    print(request.user)
     try:
         # Get organization where user is admin
         user_org = Organization.objects.get(admin=request.user)
@@ -384,10 +408,10 @@ def org_dashboard(request):
 @organizer_required_api
 def create_ko_matches(request, tournament_id, category_id):
     """
-    Create knockout matches for a specific category in a tournament.
+    Create knockout matches based on organizer-selected team pairings.
     
-    This endpoint creates knockout matches based on provided team pairings.
-    Supports both traditional single-stage and optimized complete bracket creation.
+    This endpoint creates knockout matches based on user-provided team pairings.
+    Organizers decide which teams play against each other.
     
     HTTP Method: POST
     
@@ -399,20 +423,18 @@ def create_ko_matches(request, tournament_id, category_id):
         {
             "matches": [
                 {"team_1": 1, "team_2": 2},
-                {"team_1": 3, "team_2": "BYE"},
-                ...
+                {"team_1": 3, "team_2": 4},
+                {"team_1": 5, "team_2": "BYE"}  # BYE for odd teams
             ],
-            "no_sets": 3,  # Optional, for sports with sets
-            "points_win": 15,  # Optional, for sports with sets
-            "use_complete_bracket": true  # Optional, for optimized bracket creation
+            "no_sets": 3,  # Required for set-based sports
+            "points_win": 15  # Required for set-based sports
         }
     
     Returns:
         Response: JSON containing:
         - success: Boolean indicating if the operation was successful
         - message: Success message
-        - bracket_mode: Type of bracket creation used
-        - matches_created: Number of matches created
+        - matches_created: Total number of matches created
         - immediately_schedulable: Number of matches ready for scheduling
         
         Or error details with appropriate status code.
@@ -428,6 +450,10 @@ def create_ko_matches(request, tournament_id, category_id):
         if existing_matches > 0:
             return Response({'error': 'Matches already created for this category'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Validate matches data is provided
+        if not request.data.get('matches'):
+            return Response({'error': 'Match pairings are required. Please provide "matches" array with team pairings.'}, status=status.HTTP_400_BAD_REQUEST)
+
         # Initialize KO generator based on sport type
         if category_instance.tournament.sport.scoring_type == "sets":
             no_sets = int(request.data.get("no_sets", 3))
@@ -436,11 +462,8 @@ def create_ko_matches(request, tournament_id, category_id):
         else:
             ko_gen = KoGen(category_instance, request.data)
         
-        # Determine bracket creation mode
-        use_complete_bracket = request.data.get("use_complete_bracket", True)
-        
-        # Create matches with specified mode
-        result = ko_gen.create_matches(use_complete_bracket=use_complete_bracket)
+        # Create complete bracket with user-specified teams
+        result = ko_gen.create_complete_bracket_with_teams()
         
         # Check for errors
         if isinstance(result, dict):
@@ -448,18 +471,15 @@ def create_ko_matches(request, tournament_id, category_id):
                 return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
             if 'errors' in result:
                 return Response({'errors': result['errors']}, status=status.HTTP_400_BAD_REQUEST)        
+        
         # Calculate response metrics
         ko_instance = category_instance.fixture.content_object
         total_matches = ko_instance.all_matches.count()
         schedulable_matches = ko_instance.bracket_matches.count()
-        bracket_mode = "complete_bracket" if use_complete_bracket else "traditional"
-        
-        logger.info(f"KO matches created - Mode: {bracket_mode}, Total: {total_matches}, Schedulable: {schedulable_matches}")
         
         return Response({
             'success': True, 
-            'message': f'Knockout matches created successfully using {bracket_mode} mode',
-            'bracket_mode': bracket_mode,
+            'message': 'Knockout matches created successfully',
             'matches_created': total_matches,
             'immediately_schedulable': schedulable_matches
         }, status=status.HTTP_201_CREATED)
@@ -541,6 +561,7 @@ def schedule_match(request, tournament_id, category_id):
 
         # Handle GET request - return all available matches
         if request.method == 'GET':
+            
             if fixture.fixtureType == 'KO':
                 ko_instance = fixture.content_object
                 
@@ -589,6 +610,127 @@ def schedule_match(request, tournament_id, category_id):
                     'total_matches': ko_instance.bracket_matches.count(),
                     'stage_info': f"Stage {matches_data[0]['stage']}" if matches_data else "No matches available"
                 })
+                
+            elif fixture.fixtureType == 'RR_KO':
+                rr_ko_instance = fixture.content_object
+                # Get current phase
+                current_phase = rr_ko_instance.current_phase
+                if current_phase == 'round_robin':
+                    try:
+                        # Get the round robin instance and its matches
+                        rr_phase = rr_ko_instance.round_robin_phase
+                        bracket_matches = rr_phase.bracket_matches.all()
+                        
+                        matches_data = []
+                        for match in bracket_matches:
+                            match_data = {
+                                'id': match.id,
+                                'team1': {
+                                    'id': match.team1.id,
+                                    'name': match.team1.name
+                                } if match.team1 else None,
+                                'team2': {
+                                    'id': match.team2.id,
+                                    'name': match.team2.name
+                                } if match.team2 else None,
+                                'round': getattr(match, 'round_number', 1),
+                                'match_number': getattr(match, 'match_number', None),
+                                'can_schedule': True,
+                                'stage': getattr(match, 'stage_number', None)
+                            }
+                            matches_data.append(match_data)
+                        
+                        # Get team info
+                        teams_data = []
+                        for rr_team in rr_phase.rr_teams.select_related('team').all():
+                            teams_data.append({
+                                'id': rr_team.team.id,
+                                'name': rr_team.team.name,
+                                'matches_played': rr_team.matches_played,
+                                'matches_won': rr_team.matches_won,
+                                'matches_lost': rr_team.matches_lost
+                            })
+                        
+                        # Compile stats
+                        stats = {
+                            'total_matches': rr_phase.all_matches.count(),
+                            'scheduled_matches': fixture.scheduled_matches.count(),
+                            'remaining_matches': bracket_matches.count(),
+                            'total_teams': len(teams_data)
+                        }
+                        
+                        response_data = {
+                            'success': True,
+                            'fixture_type': 'RR_KO',
+                            'current_phase': current_phase,
+                            'available_matches': matches_data,
+                            'teams': teams_data,
+                            'stats': stats
+                        }
+                        
+                        return Response(response_data, status=status.HTTP_200_OK)
+                        
+                    except Exception as e:
+                        logger.error(f"Error retrieving RR phase matches: {str(e)}")
+                        return Response(
+                            {'error': f'Error retrieving matches: {str(e)}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
+                elif current_phase == 'knockout':
+                    if not rr_ko_instance.knockout_phase:
+                        return Response({
+                            'error': 'Knockout phase not initialized yet'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                        
+                    ko_instance = rr_ko_instance.knockout_phase
+                    
+                    # Check if any matches have been created at all
+                    total_matches_in_fixture = ko_instance.all_matches.count()
+                    bracket_matches_count = ko_instance.bracket_matches.count()
+                    
+                    if total_matches_in_fixture == 0:
+                        return Response({
+                            'success': False,
+                            'fixture_type': 'RR_KO',
+                            'current_phase': 'knockout',
+                            'error': 'Base matches need to be created first',
+                            'message': 'No matches have been created for this knockout fixture.',
+                            'available_matches': [],
+                            'total_matches': 0,
+                            'stage_info': 'Matches not created yet'
+                        })
+                    
+                    # Get all bracket matches that can be scheduled (have both teams assigned)
+                    available_matches = ko_instance.bracket_matches.filter(
+                        team1__isnull=False, 
+                        team2__isnull=False
+                    ).select_related('team1', 'team2')
+                    
+                    matches_data = []
+                    for match in available_matches:
+                        matches_data.append({
+                            'id': match.id,
+                            'team1': {
+                                'id': match.team1.id,
+                                'name': match.team1.name
+                            },
+                            'team2': {
+                                'id': match.team2.id,
+                                'name': match.team2.name
+                            },
+                            'stage': match.stage_number,
+                            'match_number': match.match_number,
+                            'can_schedule': True
+                        })
+                    
+                    return Response({
+                        'success': True,
+                        'fixture_type': 'RR_KO',
+                        'current_phase': 'knockout',
+                        'available_matches': matches_data,
+                        'total_matches': ko_instance.bracket_matches.count(),
+                        'stage_info': f"Stage {matches_data[0]['stage']}" if matches_data else "No matches available"
+                    })
             
             elif fixture.fixtureType == 'RR':
                 rr_instance = fixture.content_object
@@ -627,7 +769,15 @@ def schedule_match(request, tournament_id, category_id):
 
         # Handle POST request - schedule a match
         # Get match_id and court_id from request data
-        match_id = int(request.data.get('match_id'))
+        match_id = request.data.get('match_id')
+        
+        # Validate match_id is provided
+        if not match_id:
+            return Response(
+                {'error': 'match_id is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
         court_id = request.data.get('court_id')  # NEW: Court assignment parameter
         
         # NEW: Court assignment and validation
@@ -680,7 +830,6 @@ def schedule_match(request, tournament_id, category_id):
                             queue_position = court_instance.upcoming_matches.count()
                         
                         court_instance.save()
-                        logger.info(f"Match {match_id} assigned to court {court_instance.name} as {court_position}")
                     
                     # Schedule the match
                     fixture.scheduled_matches.add(match_instance)
@@ -695,8 +844,6 @@ def schedule_match(request, tournament_id, category_id):
                         team1__isnull=False, 
                         team2__isnull=False
                     ).count()
-                    
-                    logger.info(f"Match {match_id} scheduled: {match_instance.team1.name} vs {match_instance.team2.name}, {remaining_matches} matches remaining")
                     
                 # Enhanced response with court information
                 response_data = {
@@ -762,7 +909,6 @@ def schedule_match(request, tournament_id, category_id):
                             queue_position = court_instance.upcoming_matches.count()
                         
                         court_instance.save()
-                        logger.info(f"RR Match {match_id} assigned to court {court_instance.name} as {court_position}")
                     
                     # Schedule the match
                     fixture.scheduled_matches.add(match_instance)
@@ -808,6 +954,185 @@ def schedule_match(request, tournament_id, category_id):
                 return Response(
                     {'error': 'Match not found'}, 
                     status=status.HTTP_404_NOT_FOUND
+                )
+        
+        # Handle RR_KO fixture type
+        elif category_instance.fixture.fixtureType == 'RR_KO':
+            rr_ko_instance = fixture.content_object
+            current_phase = rr_ko_instance.current_phase
+            
+            # Route to appropriate phase handler
+            if current_phase == 'round_robin':
+                # Handle Round Robin phase scheduling
+                rr_phase = rr_ko_instance.round_robin_phase
+                bracket_matches = rr_phase.bracket_matches.values_list('id', flat=True)
+                
+                if match_id not in bracket_matches:
+                    return Response(
+                        {'error': 'Match not found in round robin matches'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                try:
+                    with transaction.atomic():
+                        match_instance = Match.objects.get(id=match_id)
+                        
+                        # Auto-queue logic for court assignment
+                        if court_instance:
+                            if court_instance.current_match is None:
+                                court_instance.current_match = match_instance
+                                court_position = "current"
+                                queue_position = None
+                            else:
+                                court_instance.upcoming_matches.add(match_instance)
+                                court_position = "queued"
+                                queue_position = court_instance.upcoming_matches.count()
+                            
+                            court_instance.save()
+                        
+                        # Schedule the match
+                        fixture.scheduled_matches.add(match_instance)
+                        rr_phase.bracket_matches.remove(match_instance)
+                        
+                        # Save changes
+                        fixture.save()
+                        rr_phase.save()
+                        
+                        # Calculate remaining matches
+                        remaining_matches = rr_phase.bracket_matches.count()
+                        
+                    # Response with court information
+                    response_data = {
+                        'success': True,
+                        'message': 'Match scheduled successfully',
+                        'fixture_type': 'RR_KO',
+                        'current_phase': 'round_robin',
+                        'match': {
+                            'id': match_instance.id,
+                            'team1': match_instance.team1.name if match_instance.team1 else 'BYE',
+                            'team2': match_instance.team2.name if match_instance.team2 else 'BYE',
+                            'round': getattr(match_instance, 'round_number', 1)
+                        },
+                        'next_available_matches': remaining_matches
+                    }
+                    
+                    if court_instance:
+                        response_data['court'] = {
+                            'id': court_instance.id,
+                            'name': court_instance.name
+                        }
+                        response_data['position'] = court_position
+                        response_data['queue_position'] = queue_position
+                        
+                        if court_position == "current":
+                            response_data['message'] = f"Match scheduled successfully and assigned to {court_instance.name}"
+                        else:
+                            response_data['message'] = f"Match scheduled and queued for {court_instance.name} (position {queue_position})"
+                    
+                    return Response(response_data)
+                
+                except Match.DoesNotExist:
+                    return Response(
+                        {'error': 'Match not found'}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                    
+            elif current_phase == 'knockout':
+                # Handle Knockout phase scheduling
+                ko_phase = rr_ko_instance.knockout_phase
+                
+                if not ko_phase:
+                    return Response(
+                        {'error': 'Knockout phase not initialized yet'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                bracket_matches = ko_phase.bracket_matches.values_list('id', flat=True)
+                
+                if match_id not in bracket_matches:
+                    return Response(
+                        {'error': 'Match not found in knockout bracket matches'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                try:
+                    with transaction.atomic():
+                        match_instance = Match.objects.get(id=match_id)
+                        
+                        # Validate both teams are assigned
+                        if not match_instance.team1 or not match_instance.team2:
+                            return Response(
+                                {'error': 'Match cannot be scheduled - both teams must be assigned'}, 
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        
+                        # Auto-queue logic for court assignment
+                        if court_instance:
+                            if court_instance.current_match is None:
+                                court_instance.current_match = match_instance
+                                court_position = "current"
+                                queue_position = None
+                            else:
+                                court_instance.upcoming_matches.add(match_instance)
+                                court_position = "queued"
+                                queue_position = court_instance.upcoming_matches.count()
+                            
+                            court_instance.save()
+                        
+                        # Schedule the match
+                        fixture.scheduled_matches.add(match_instance)
+                        ko_phase.bracket_matches.remove(match_instance)
+                        
+                        # Save changes
+                        fixture.save()
+                        ko_phase.save()
+                        
+                        # Calculate remaining matches
+                        remaining_matches = ko_phase.bracket_matches.filter(
+                            team1__isnull=False, 
+                            team2__isnull=False
+                        ).count()
+                        
+                    # Response with court information
+                    response_data = {
+                        'success': True,
+                        'message': 'Match scheduled successfully',
+                        'fixture_type': 'RR_KO',
+                        'current_phase': 'knockout',
+                        'match': {
+                            'id': match_instance.id,
+                            'team1': match_instance.team1.name if match_instance.team1 else 'BYE',
+                            'team2': match_instance.team2.name if match_instance.team2 else 'BYE',
+                            'stage': match_instance.stage_number,
+                            'match_number': match_instance.match_number
+                        },
+                        'next_available_matches': remaining_matches
+                    }
+                    
+                    if court_instance:
+                        response_data['court'] = {
+                            'id': court_instance.id,
+                            'name': court_instance.name
+                        }
+                        response_data['position'] = court_position
+                        response_data['queue_position'] = queue_position
+                        
+                        if court_position == "current":
+                            response_data['message'] = f"Match scheduled successfully and assigned to {court_instance.name}"
+                        else:
+                            response_data['message'] = f"Match scheduled and queued for {court_instance.name} (position {queue_position})"
+                    
+                    return Response(response_data)
+                
+                except Match.DoesNotExist:
+                    return Response(
+                        {'error': 'Match not found'}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                return Response(
+                    {'error': f'Unknown phase: {current_phase}'}, 
+                    status=status.HTTP_400_BAD_REQUEST
                 )
         
         else:
@@ -885,8 +1210,15 @@ def update_score(request, tournament_id, category_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get match ID and validate action
-        match_id = int(request.data.get('match_id'))
+        # Get match ID and validate
+        match_id = request.data.get('match_id')
+        
+        if not match_id:
+            return Response(
+                {'error': 'match_id is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # Validate action
         action = request.data.get('action')
         
         if action not in ['increment', 'decrement', 'finish']:
@@ -912,40 +1244,184 @@ def update_score(request, tournament_id, category_id):
             # Check if match was completed
             match_completed = match_instance.match_state
             
-            if match_completed and category_instance.fixture.fixtureType == 'KO':
-                ko_instance = category_instance.fixture.content_object
+            if match_completed:
+                fixture_type = category_instance.fixture.fixtureType
                 
-                # Count new matches available for scheduling
-                available_matches = ko_instance.bracket_matches.filter(
-                    team1__isnull=False, 
-                    team2__isnull=False
-                ).count()
+                if fixture_type == 'KO':
+                    ko_instance = category_instance.fixture.content_object
+                    
+                    # Count new matches available for scheduling
+                    available_matches = ko_instance.bracket_matches.filter(
+                        team1__isnull=False, 
+                        team2__isnull=False
+                    ).count()
+                    
+                    # Check tournament completion
+                    tournament_completed = bool(category_instance.winner)
+                    
+                    # Build standardized response
+                    extra_fields = {}
+                    if tournament_completed:
+                        extra_fields['tournament_winner'] = category_instance.winner.name
+                        extra_fields['message'] = f"Tournament completed! Winner: {category_instance.winner.name}"
+                    elif available_matches > 0:
+                        extra_fields['message'] = f"Match completed! {available_matches} new matches ready for scheduling"
+                    
+                    result.update(build_match_completion_response(
+                        match_instance, available_matches, tournament_completed, **extra_fields
+                    ))
+                        
+                elif fixture_type == 'RR_KO':
+                    rr_ko_instance = category_instance.fixture.content_object
+                    current_phase = rr_ko_instance.current_phase
+                    
+                    if current_phase == 'round_robin':
+                        # Update RR phase stats
+                        rr_ko_instance.round_robin_phase.update_team_stats(match_instance)
+                        
+                        # Check if RR phase is complete
+                        if rr_ko_instance.check_round_robin_completion():
+                            # Automatically create knockout matches
+                            rr_phase = rr_ko_instance.round_robin_phase
+                            total_teams = rr_phase.rr_teams.count()
+                            num_qualified = max(2, min(total_teams // 2, 8))
+                            
+                            qualified_teams = rr_ko_instance.get_qualified_teams(num_teams=num_qualified)
+                            
+                            # Prepare match pairings based on seeding
+                            matches_data = []
+                            has_bye = len(qualified_teams) % 2 != 0
+                            bye_team = None
+                            
+                            if has_bye:
+                                # Top seed gets BYE
+                                bye_team = qualified_teams[0]
+                                remaining_teams = qualified_teams[1:]
+                            else:
+                                remaining_teams = qualified_teams
+                            
+                            # Create pairings: highest seed vs lowest seed
+                            num_pairs = len(remaining_teams) // 2
+                            for i in range(num_pairs):
+                                high_seed = remaining_teams[i]
+                                low_seed = remaining_teams[-(i + 1)]
+                                matches_data.append({
+                                    'team_1': high_seed.id,
+                                    'team_2': low_seed.id
+                                })
+                            
+                            # Build request data for KoGen
+                            ko_request_data = {'matches': matches_data}
+                            
+                            # Create knockout phase FIRST (before KoGen needs it)
+                            try:
+                                # Create Knockout instance if not exists
+                                if not rr_ko_instance.knockout_phase:
+                                    from .models import Knockout
+                                    ko_phase = Knockout.objects.create(
+                                        category=category_instance
+                                    )
+                                    rr_ko_instance.knockout_phase = ko_phase
+                                    rr_ko_instance.save()
+                                
+                                # Use context manager to temporarily swap content_object for KoGen
+                                with KoGenContentSwap(category_instance.fixture, rr_ko_instance.knockout_phase):
+                                    # Initialize KO generator based on sport type
+                                    if category_instance.tournament.sport.scoring_type == "sets":
+                                        no_sets = category_instance.max_sets
+                                        points_win = category_instance.required_points
+                                        ko_gen = KoGen(category_instance, ko_request_data, no_sets, points_win)
+                                    else:
+                                        ko_gen = KoGen(category_instance, ko_request_data)
+                                    
+                                    # Use KoGen to create bracket structure
+                                    ko_result = ko_gen.create_complete_bracket_with_teams()
+                                
+                                # Check if KoGen returned an error
+                                if isinstance(ko_result, dict) and ('error' in ko_result or 'errors' in ko_result):
+                                    error_msg = ko_result.get('error', ko_result.get('errors', 'Unknown error'))
+                                    raise Exception(f"KoGen failed: {error_msg}")
+                                
+                                # Mark knockout phase as started
+                                rr_ko_instance.knockout_started = True
+                                rr_ko_instance.save()
+                                
+                                ko_instance = rr_ko_instance.knockout_phase
+                                total_ko_matches = ko_instance.all_matches.count()
+                                available_ko_matches = ko_instance.bracket_matches.filter(
+                                    team1__isnull=False,
+                                    team2__isnull=False
+                                ).count()
+                                
+                                # Build response
+                                result.update({
+                                    'match_completed': match_completed,
+                                    'winner': match_instance.winner.name if match_instance.winner else None,
+                                    'phase_completed': True,
+                                    'new_phase': 'knockout',
+                                    'qualified_teams': [{'id': t.id, 'name': t.name} for t in qualified_teams],
+                                    'knockout_matches_created': total_ko_matches,
+                                    'knockout_matches_ready': available_ko_matches,
+                                    'has_bye': has_bye,
+                                    'message': f'Round Robin completed! Knockout matches auto-created. {available_ko_matches} matches ready to schedule.'
+                                })
+                                
+                                if has_bye and bye_team:
+                                    result['bye_team'] = {
+                                        'id': bye_team.id,
+                                        'name': bye_team.name,
+                                        'message': f'{bye_team.name} advances directly (BYE)'
+                                    }
+                                    
+                            except Exception as ko_error:
+                                logger.error(f"Error auto-creating KO matches: {str(ko_error)}")
+                                result.update({
+                                    'match_completed': match_completed,
+                                    'winner': match_instance.winner.name if match_instance.winner else None,
+                                    'phase_completed': True,
+                                    'rr_phase_completed': True,
+                                    'qualified_teams': len(qualified_teams),
+                                    'error': f'RR completed but failed to create KO matches: {str(ko_error)}',
+                                    'message': 'Round Robin phase completed but knockout creation failed. Please contact support.'
+                                })
+                        else:
+                            result.update({
+                                'match_completed': match_completed,
+                                'winner': match_instance.winner.name if match_instance.winner else None,
+                                'message': 'Match completed successfully'
+                            })
+                            
+                    elif current_phase == 'knockout':
+                        ko_instance = rr_ko_instance.knockout_phase
+                        
+                        # Count new matches available for scheduling
+                        available_matches = ko_instance.bracket_matches.filter(
+                            team1__isnull=False, 
+                            team2__isnull=False
+                        ).count()
+                        
+                        # Check tournament completion
+                        tournament_completed = bool(category_instance.winner)
+                        
+                        # Build standardized response
+                        extra_fields = {}
+                        if tournament_completed:
+                            extra_fields['tournament_winner'] = category_instance.winner.name
+                            extra_fields['message'] = f"Tournament completed! Winner: {category_instance.winner.name}"
+                        elif available_matches > 0:
+                            extra_fields['message'] = f"Match completed! {available_matches} new matches ready for scheduling"
+                        
+                        result.update(build_match_completion_response(
+                            match_instance, available_matches, tournament_completed, **extra_fields
+                        ))
                 
-                # Check tournament completion
-                tournament_completed = bool(category_instance.winner)
-                
-                # Enhanced response data
-                result.update({
-                    'match_completed': match_completed,
-                    'winner': match_instance.winner.name if match_instance.winner else None,
-                    'next_matches_available': available_matches,
-                    'tournament_completed': tournament_completed
-                })
-                
-                if tournament_completed:
-                    result['tournament_winner'] = category_instance.winner.name
-                    result['message'] = f" Tournament completed! Winner: {category_instance.winner.name}"
-                    logger.info(f" Tournament {category_instance.id} completed! Winner: {category_instance.winner.name}")
-                elif available_matches > 0:
-                    result['message'] = f"Match completed! {available_matches} new matches ready for scheduling"
-                    logger.info(f"Match completed, {available_matches} matches now available for scheduling")
-            
-            elif match_completed and category_instance.fixture.fixtureType == 'RR':
-                # For Round Robin, just indicate match completion
-                result.update({
-                    'match_completed': match_completed,
-                    'winner': match_instance.winner.name if match_instance.winner else None
-                })
+                elif fixture_type == 'RR':
+                    # For Round Robin, just indicate match completion
+                    result.update({
+                        'match_completed': match_completed,
+                        'winner': match_instance.winner.name if match_instance.winner else None,
+                        'message': 'Match completed successfully'
+                    })
         
         return Response(
             result, 
@@ -1243,6 +1719,8 @@ def get_fixture_details(request, tournament_id, category_id):
             return Response(build_ko_fixture_data(category, fixture))
         elif fixture.fixtureType == 'RR':
             return Response(build_rr_fixture_data(category, fixture))
+        elif fixture.fixtureType == 'RR_KO':
+            return Response(build_rr_ko_fixture_data(category, fixture))
         else:
             return Response(
                 {'error': 'Unsupported fixture type'}, 
@@ -1401,6 +1879,126 @@ def build_rr_fixture_data(category, fixture):
         "teams": teams,
         "results": results
     }
+
+
+def build_rr_ko_fixture_data(category, fixture):
+    """
+    Build RR_KO fixture data based on current phase.
+    
+    Args:
+        category: Category instance
+        fixture: Fixture instance
+        
+    Returns:
+        dict: Structured RR_KO fixture data for frontend visualization
+    """
+    rr_ko_instance = fixture.content_object
+    sport = category.tournament.sport
+    current_phase = rr_ko_instance.current_phase
+    
+    # Base response with fixture type and current phase info
+    response_data = {
+        "fixture_type": "RR_KO",
+        "sport_type": sport.scoring_type,
+        "current_phase": current_phase,
+        "round_robin_completed": rr_ko_instance.round_robin_completed,
+        "knockout_started": rr_ko_instance.knockout_started
+    }
+    
+    # Round Robin phase data (always include if RR phase exists)
+    if rr_ko_instance.round_robin_phase:
+        rr_teams = [team.name for team in category.teams.all()]
+        rr_matches = rr_ko_instance.round_robin_phase.all_matches.select_related(
+            'team1', 'team2', 'winner'
+        ).prefetch_related('sets').all()
+        
+        rr_results = []
+        for match in rr_matches:
+            if match.team1 and match.team2:
+                result_data = {
+                    "team1": match.team1.name,
+                    "team2": match.team2.name,
+                    "match_completed": match.match_state
+                }
+                
+                if match.match_state:
+                    if sport.scoring_type == 'simple':
+                        scores = get_simple_scores(match)
+                        result_data.update({
+                            "score1": scores["team1Score"],
+                            "score2": scores["team2Score"]
+                        })
+                    else:
+                        result_data.update({
+                            "score1": match.team1_sets_won,
+                            "score2": match.team2_sets_won
+                        })
+                else:
+                    result_data.update({
+                        "score1": None,
+                        "score2": None
+                    })
+                    
+                rr_results.append(result_data)
+        
+        response_data["round_robin"] = {
+            "teams": rr_teams,
+            "results": rr_results
+        }
+    
+    # Knockout phase data (only if KO has started)
+    if rr_ko_instance.knockout_started and rr_ko_instance.knockout_phase:
+        ko_matches = rr_ko_instance.knockout_phase.all_matches.select_related(
+            'team1', 'team2', 'winner'
+        ).prefetch_related('sets').all()
+        
+        if ko_matches.exists():
+            stages_dict = {}
+            for match in ko_matches:
+                stage_num = match.stage_number
+                if stage_num not in stages_dict:
+                    stages_dict[stage_num] = []
+                stages_dict[stage_num].append(match)
+            
+            stages = []
+            stage_numbers = sorted(stages_dict.keys(), reverse=True)
+            
+            for i, stage_num in enumerate(stage_numbers):
+                stage_matches = sorted(stages_dict[stage_num], key=lambda x: x.match_number or 0)
+                stage_name = generate_ko_stage_name(i, len(stage_numbers), len(stage_matches))
+                
+                matches_data = []
+                for match in stage_matches:
+                    is_first_round = stage_num == max(stage_numbers)
+                    
+                    match_data = {
+                        "id": f"s{stage_num}m{match.match_number or 0}",
+                        "team1": match.team1.name if match.team1 else ("BYE" if is_first_round else "TBD"),
+                        "team2": match.team2.name if match.team2 else ("BYE" if is_first_round else "TBD"),
+                        "winner": match.winner.name if match.winner else None,
+                        "match_completed": match.match_state
+                    }
+                    
+                    if sport.scoring_type == 'simple':
+                        scores = get_simple_scores(match)
+                        match_data.update(scores)
+                    else:
+                        scores = get_set_scores(match)
+                        match_data.update(scores)
+                        
+                    matches_data.append(match_data)
+                
+                stages.append({
+                    "stageIndex": stage_num,
+                    "name": stage_name,
+                    "matches": matches_data
+                })
+            
+            response_data["knockout"] = {
+                "stages": stages
+            }
+    
+    return response_data
 
 
 def generate_ko_stage_name(stage_index, total_stages, match_count):
