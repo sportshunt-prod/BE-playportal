@@ -7,6 +7,7 @@ urlpatterns = [
     path('auth/login/', login_api, name='login'),
     path('auth/google/', google_auth_api, name='google_auth'),
     path('auth/logout/', logout_view, name='logout'),
+    path('sports/', sports_list_api, name='sports_list'),
     path('upcoming-past_tournaments/', tournament_list, name='tournament_list'),
     path('profile/', profile_api, name='profile_api'),
     path('tournament/<int:tournament_id>/', tournament_detail_api, name='tournament_detail_api'),

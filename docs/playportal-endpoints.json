@@ -260,6 +260,44 @@
           ]
         },
         {
+          "name": "Sports",
+          "item": [
+            {
+              "name": "List All Sports",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/sports/",
+                  "host": ["{{base_url}}"],
+                  "path": ["sports", ""]
+                },
+                "description": "Get a list of all available sports in the system. No authentication required. Returns sport id, name, and scoring_type (sets or simple)."
+              },
+              "response": [
+                {
+                  "name": "Successful Response",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/sports/",
+                      "host": ["{{base_url}}"],
+                      "path": ["sports", ""]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "cookie": [],
+                  "body": "[\n    {\n        \"id\": 1,\n        \"name\": \"Tennis\",\n        \"scoring_type\": \"sets\"\n    },\n    {\n        \"id\": 2,\n        \"name\": \"Badminton\",\n        \"scoring_type\": \"sets\"\n    },\n    {\n        \"id\": 3,\n        \"name\": \"Basketball\",\n        \"scoring_type\": \"simple\"\n    },\n    {\n        \"id\": 4,\n        \"name\": \"Football\",\n        \"scoring_type\": \"simple\"\n    },\n    {\n        \"id\": 5,\n        \"name\": \"Volleyball\",\n        \"scoring_type\": \"sets\"\n    }\n]"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "name": "Tournaments",
           "item": [
             {

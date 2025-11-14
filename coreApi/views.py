@@ -10,9 +10,10 @@ from django.urls import reverse
 from django.conf import settings
 from django.utils import timezone
 from .models import *
-from organizationApi.models import Tournament, Category
+from organizationApi.models import Tournament, Category, Sport
+from organizationApi.serializers import SportDetailSerializer
 from .serializers import (
-    TournamentListSerializer, UserProfileSerializer, TournamentDetailSerializer, 
+    TournamentListSerializer, UserProfileSerializer, TournamentDetailSerializer,
     CategorySerializer, RegisterSerializer, LoginSerializer, GoogleAuthSerializer
 )
 import jwt
@@ -299,22 +300,40 @@ def tournament_detail_api(request, tournament_id):
 def category_detail_api(request, tournament_id, category_id):
     """
     Get detailed information about a specific category in a tournament.
-    
+
     This endpoint provides detailed information about a category within a tournament,
     including its name, teams, fixtures, etc.
-    
+
     HTTP Method: GET
-    
+
     URL Parameters:
         - tournament_id: ID of the tournament
         - category_id: ID of the category to retrieve
-    
+
     Returns:
         Response: JSON containing detailed category information as defined in
         CategorySerializer
-        
+
         Or 404 status if the category or tournament doesn't exist
     """
     category = get_object_or_404(Category, id=category_id, tournament_id=tournament_id)
     serializer = CategorySerializer(category)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def sports_list_api(request):
+    """
+    Get a list of all available sports.
+
+    This endpoint provides a list of all sports available in the system.
+    No authentication required - public endpoint.
+
+    HTTP Method: GET
+
+    Returns:
+        Response: JSON array containing all sports with their id, name, and scoring_type
+        Example: [{"id": 1, "name": "Tennis", "scoring_type": "sets"}, ...]
+    """
+    sports = Sport.objects.all().order_by('name')
+    serializer = SportDetailSerializer(sports, many=True)
     return Response(serializer.data)

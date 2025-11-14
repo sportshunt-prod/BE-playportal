@@ -52,7 +52,7 @@ class Tournament(models.Model):
     venue_address = models.CharField(max_length=1024)
     venue_link = models.URLField(max_length=512, blank=True, null=True)
     ph_number = models.CharField(max_length=10, default="", validators=[phone_regex])
-    sport = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='tournaments', default=1)
+    sport = models.ForeignKey(Sport, on_delete=models.CASCADE, related_name='tournaments')
 
     class Meta:
         ordering = ['start_date']
