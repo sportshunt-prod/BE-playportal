@@ -367,8 +367,9 @@ def org_dashboard(request):
     Returns:
         Response: JSON containing:
         - organization: Organization data or null if not found
-        - upcoming_tournaments: List of upcoming tournaments
-        - past_tournaments: List of past tournaments
+        - upcoming_tournaments: List of upcoming tournaments (not started yet)
+        - ongoing_tournaments: List of currently active tournaments (started but not ended)
+        - past_tournaments: List of past tournaments (ended)
     """
     try:
         # Get organization where user is admin
@@ -378,20 +379,33 @@ def org_dashboard(request):
             # Get current date
             from datetime import datetime
             current_date = datetime.now().date()
-            # Get tournaments using correct related_name
-            upcoming = user_org.tournaments.filter(start_date__gte=current_date)
+            
+            # Upcoming: Tournaments that haven't started yet
+            upcoming = user_org.tournaments.filter(start_date__gt=current_date)
+            
+            # Ongoing: Tournaments currently happening (started but not ended)
+            ongoing = user_org.tournaments.filter(start_date__lte=current_date,end_date__gte=current_date)
+            # Past: Tournaments that have ended
             past = user_org.tournaments.filter(end_date__lt=current_date)
+            
+            # Serialize the data
             upcoming_serializer = TournamentSerializer(upcoming, many=True)
+            ongoing_serializer = TournamentSerializer(ongoing, many=True)
             past_serializer = TournamentSerializer(past, many=True)
+            
             upcoming_tournaments = upcoming_serializer.data
+            ongoing_tournaments = ongoing_serializer.data
             past_tournaments = past_serializer.data
         else:
             org_data = None
             upcoming_tournaments = []
+            ongoing_tournaments = []
             past_tournaments = []
+        
         return Response({
             "organization": org_data,
             "upcoming_tournaments": upcoming_tournaments,
+            "ongoing_tournaments": ongoing_tournaments,
             "past_tournaments": past_tournaments,
             "matches_scheduled": []
         })
@@ -399,9 +413,9 @@ def org_dashboard(request):
         return Response({
             "organization": None,
             "upcoming_tournaments": [],
+            "ongoing_tournaments": [],
             "past_tournaments": [],
             "matches_scheduled": []
-
         }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
