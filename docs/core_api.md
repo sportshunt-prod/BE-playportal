@@ -151,6 +151,48 @@ This document details the endpoints available in the Core API.
 
 ---
 
+## Sports
+
+### List All Sports
+
+-   **Description:** Retrieves a list of all available sports in the system. No authentication required.
+-   **Endpoint:** `/sports/`
+-   **Method:** `GET`
+-   **Authentication:** None required
+-   **Success Response (200 OK):**
+    ```json
+    [
+        {
+            "id": 1,
+            "name": "Tennis",
+            "scoring_type": "sets"
+        },
+        {
+            "id": 2,
+            "name": "Badminton",
+            "scoring_type": "sets"
+        },
+        {
+            "id": 3,
+            "name": "Basketball",
+            "scoring_type": "simple"
+        },
+        {
+            "id": 4,
+            "name": "Football",
+            "scoring_type": "simple"
+        },
+        {
+            "id": 5,
+            "name": "Volleyball",
+            "scoring_type": "sets"
+        }
+    ]
+    ```
+
+
+---
+
 ## Tournaments
 
 ### List Upcoming and Past Tournaments
