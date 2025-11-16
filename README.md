@@ -40,7 +40,7 @@ SportsHunt is a modern tournament management system designed to handle various s
 - **Authentication**: Native Django auth with email/password and Google OAuth, JWT Bearer tokens.
 - **Database**: SQLite (development), PostgreSQL (production).
 - **Testing**: Django Test Framework.
-- **Deployment**: Docker, Gunicorn, Nginx.
+- **Deployment**: Docker, Gunicorn.
 
 ## 📞 Support
 
