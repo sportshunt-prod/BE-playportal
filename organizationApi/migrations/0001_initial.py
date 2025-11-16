@@ -194,7 +194,7 @@ class Migration(migrations.Migration):
                 ('venue_link', models.URLField(blank=True, max_length=512, null=True)),
                 ('ph_number', models.CharField(default='', max_length=10, validators=[django.core.validators.RegexValidator(message='Phone number must be 10 digits', regex='^\\d{10}$')])),
                 ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tournaments', to='organizationApi.organization')),
-                ('sport', models.ForeignKey(default=2, on_delete=django.db.models.deletion.CASCADE, related_name='tournaments', to='organizationApi.sport')),
+                ('sport', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tournaments', to='organizationApi.sport')),
             ],
             options={
                 'ordering': ['start_date'],

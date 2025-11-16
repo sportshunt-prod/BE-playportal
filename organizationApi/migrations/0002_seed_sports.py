@@ -41,9 +41,10 @@ def reverse_seed_sports(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('organizationApi', '0002_alter_tournament_sport'),
+        ('organizationApi', '0001_initial'),
     ]
 
     operations = [
         migrations.RunPython(seed_sports, reverse_seed_sports),
     ]
+
