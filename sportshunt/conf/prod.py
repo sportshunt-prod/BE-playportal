@@ -226,7 +226,7 @@ CORS_ALLOWED_ORIGINS = list(dict.fromkeys(FRONTEND_ORIGINS + HOST_ORIGINS_NO_WIL
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 WSGI_APPLICATION = "sportshunt.wsgi.application"
 

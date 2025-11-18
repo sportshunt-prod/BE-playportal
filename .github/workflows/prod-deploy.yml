@@ -3,7 +3,7 @@ name: Deploy PlayPortal Backend
 on:
   push:
     branches:
-      - prod-1
+      - prod
 
 env:
   ACR_NAME: sportshuntprod
