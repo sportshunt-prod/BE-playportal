@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 import tempfile
+import logging
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -167,3 +168,49 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Sentry Configuration
+SENTRY_DSN = os.environ.get('SENTRY_DSN')
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+    
+    # Get sample rates from environment variables (default to 1.0 for 100%)
+    traces_sample_rate = float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '1.0'))
+    profile_session_sample_rate = float(os.environ.get('SENTRY_PROFILE_SESSION_SAMPLE_RATE', '1.0'))
+    
+    # Configure logging integration
+    logging_integration = LoggingIntegration(
+        level=logging.INFO,        # Capture info and above as breadcrumbs
+        event_level=logging.ERROR  # Send errors and above as events
+    )
+    
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        # Add data like request headers and IP for users
+        send_default_pii=True,
+        # Enable sending logs to Sentry
+        enable_logs=True,
+        # Set traces_sample_rate to capture transactions for tracing
+        traces_sample_rate=traces_sample_rate,
+        # Set profile_session_sample_rate to profile sessions
+        profile_session_sample_rate=profile_session_sample_rate,
+        # Set profile_lifecycle to "trace" to automatically run the profiler
+        # when there is an active transaction
+        profile_lifecycle="trace",
+        # Integrations
+        integrations=[
+            DjangoIntegration(
+                transaction_style='url',
+                middleware_spans=True,
+                signals_spans=True,
+                cache_spans=True,
+            ),
+            logging_integration,
+        ],
+        # Set environment
+        environment=os.environ.get('SENTRY_ENVIRONMENT', 'development'),
+        # Release version (optional)
+        release=os.environ.get('SENTRY_RELEASE'),
+    )
