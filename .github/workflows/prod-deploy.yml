@@ -2,8 +2,8 @@ name: Deploy PlayPortal Backend
 
 on:
   push:
-    branches:
-      - prod
+    tags:
+      - 'v*.*.*'
 
 env:
   ACR_NAME: sportshuntprod
@@ -35,7 +35,7 @@ jobs:
         run: |
           docker buildx build \
             --platform linux/amd64 \
-            --tag $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }} \
+            --tag $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.ref_name }} \
             --tag $ACR_LOGIN_SERVER/$IMAGE_NAME:prod-latest \
             --push \
             .
@@ -45,7 +45,7 @@ jobs:
           az webapp config container set \
             --resource-group $RESOURCE_GROUP \
             --name $WEBAPP_NAME \
-            --container-image-name $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}
+            --container-image-name $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.ref_name }}
 
       - name: Restart Web App
         run: az webapp restart --resource-group $RESOURCE_GROUP --name $WEBAPP_NAME
