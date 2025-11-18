@@ -1,0 +1,52 @@
+name: Deploy PlayPortal Backend
+
+on:
+  push:
+    branches:
+      - prod-1
+
+env:
+  ACR_NAME: sportshuntprod
+  ACR_LOGIN_SERVER: sportshuntprod.azurecr.io
+  IMAGE_NAME: playportal-be
+  RESOURCE_GROUP: rg-playportal-prod
+  WEBAPP_NAME: be-playportal
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Azure Container Registry Login
+        run: az acr login --name $ACR_NAME
+
+      - name: Build and Push Image
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --tag $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }} \
+            --tag $ACR_LOGIN_SERVER/$IMAGE_NAME:prod-latest \
+            --push \
+            .
+
+      - name: Update Web App Container
+        run: |
+          az webapp config container set \
+            --resource-group $RESOURCE_GROUP \
+            --name $WEBAPP_NAME \
+            --container-image-name $ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}
+
+      - name: Restart Web App
+        run: az webapp restart --resource-group $RESOURCE_GROUP --name $WEBAPP_NAME
+

@@ -42,6 +42,64 @@ SportsHunt is a modern tournament management system designed to handle various s
 - **Testing**: Django Test Framework.
 - **Deployment**: Docker, Gunicorn.
 
+## 🐳 Docker Usage
+
+1. **Create an environment file** (e.g., `.env`) that includes every setting required by `sportshunt/conf/prod.py`, such as:
+   - `DJANGO_SECRET_KEY`
+   - `DJANGO_SETTINGS_MODULE`
+   - `DEBUG`
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `JWT_SECRET`
+   - `FRONTEND_URL`
+   - `ALLOWED_HOSTS`
+   - `POSTGRES_HOST`
+   - `POSTGRES_DB`
+   - `POSTGRES_USER`
+   - `POSTGRES_PASSWORD`
+   - `POSTGRES_PORT`
+   - any other prod-only flags (e.g., `USE_HTTPS`, `LOGS_DIR`)
+
+2. **Build the image**:
+   ```bash
+   docker build -t playportal-be .
+   ```
+
+3. **Run the container** (pass the env file and opt-in to migrations/static collection when needed):
+   ```bash
+   docker run \
+     --env-file .env \
+     -e RUN_MIGRATIONS=true \
+     -e COLLECT_STATIC=true \
+     -p 8000:8000 \
+     playportal-be
+   ```
+
+   - The container defaults to `sportshunt.conf.prod` and serves via Gunicorn on port 8000.
+   - `RUN_MIGRATIONS` / `COLLECT_STATIC` are optional toggles consumed by `docker/entrypoint.sh`.
+
+> **Note:** The application expects to reach a PostgreSQL instance (Azure Flexible Server in production). Ensure the connection details in your env file point to the correct database host.
+
+Example `.env` snippet for local Docker runs:
+
+```
+DJANGO_SECRET_KEY=your-secret-key-here-change-this-in-production
+DJANGO_SETTINGS_MODULE=sportshunt.conf.prod
+DEBUG=false
+ALLOWED_HOSTS=localhost,127.0.0.1
+POSTGRES_DB=playportal
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your-secure-password-here
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+JWT_SECRET=your-jwt-secret-key-here-change-this
+FRONTEND_URL=http://localhost:3000
+USE_HTTPS=false
+LOGS_DIR=/app/logs
+```
+
 ## 📞 Support
 
 For questions, issues, or contributions:
