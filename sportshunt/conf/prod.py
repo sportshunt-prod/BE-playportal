@@ -224,9 +224,13 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 
 CORS_ALLOWED_ORIGINS = list(dict.fromkeys(FRONTEND_ORIGINS + HOST_ORIGINS_NO_WILDCARD))
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# WhiteNoise configuration
+WHITENOISE_USE_FINDERS = False  # Disable finders in production for better performance
+WHITENOISE_AUTOREFRESH = False  # Disable auto-refresh in production
 
 WSGI_APPLICATION = "sportshunt.wsgi.application"
 

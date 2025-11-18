@@ -12,7 +12,7 @@ DATABASES = {
     }
 }
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 WSGI_APPLICATION = "sportshunt.wsgi.application"
