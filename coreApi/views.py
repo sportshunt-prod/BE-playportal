@@ -220,22 +220,30 @@ def logout_view(req):
 @api_view(['GET'])
 def tournament_list(request):
     """
-    Get a list of upcoming and past tournaments.
+    Get a list of upcoming, ongoing, and past tournaments.
     
-    This endpoint provides lists of upcoming tournaments (start date in the future)
-    and past tournaments (end date in the past), limited to 4 of each.
+    This endpoint provides lists of upcoming tournaments (start date in the future),
+    ongoing tournaments (current date between start and end date), and past tournaments
+    (end date in the past), limited to 4 of each.
     
     HTTP Method: GET
     
     Returns:
         Response: JSON containing:
         - upcoming_tournaments: List of tournaments with future start dates (max 4)
+        - ongoing_tournaments: List of tournaments currently in progress (max 4)
         - past_tournaments: List of tournaments with past end dates (max 4)
     """
     current_date = timezone.now().date()
-      # Get upcoming tournaments
+    # Get upcoming tournaments
     upcoming_tournaments = Tournament.objects.filter(
         start_date__gt=current_date
+    ).select_related('organization', 'sport').order_by('start_date')[:4]
+    
+    # Get ongoing tournaments
+    ongoing_tournaments = Tournament.objects.filter(
+        start_date__lte=current_date,
+        end_date__gte=current_date
     ).select_related('organization', 'sport').order_by('start_date')[:4]
     
     # Get past tournaments
@@ -245,10 +253,12 @@ def tournament_list(request):
     
     # Serialize the data
     upcoming_serializer = TournamentListSerializer(upcoming_tournaments, many=True)
+    ongoing_serializer = TournamentListSerializer(ongoing_tournaments, many=True)
     past_serializer = TournamentListSerializer(past_tournaments, many=True)
     
     return Response({
         'upcoming_tournaments': upcoming_serializer.data,
+        'ongoing_tournaments': ongoing_serializer.data,
         'past_tournaments': past_serializer.data
     })
 

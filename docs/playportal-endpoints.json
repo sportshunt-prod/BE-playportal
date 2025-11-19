@@ -301,7 +301,7 @@
           "name": "Tournaments",
           "item": [
             {
-              "name": "Get Tournament List (Upcoming & Past)",
+              "name": "Get Tournament List (Upcoming, Ongoing & Past)",
               "request": {
                 "method": "GET",
                 "header": [],
@@ -310,7 +310,7 @@
                   "host": ["{{base_url}}"],
                   "path": ["upcoming-past_tournaments", ""]
                 },
-                "description": "Get lists of upcoming tournaments (future start dates) and past tournaments (past end dates), limited to 4 of each."
+                "description": "Get lists of upcoming tournaments (future start dates), ongoing tournaments (current date between start and end date), and past tournaments (past end dates), limited to 4 of each."
               },
               "response": [
                 {
@@ -329,7 +329,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n    \"upcoming_tournaments\": [\n        {\n            \"id\": 1,\n            \"name\": \"Summer Championship 2025\",\n            \"organization\": {\n                \"name\": \"Sports Club Delhi\"\n            },\n            \"start_date\": \"2025-09-15\",\n            \"end_date\": \"2025-09-17\",\n            \"venue_address\": \"Delhi Sports Complex\",\n            \"completed\": false\n        }\n    ],\n    \"past_tournaments\": [\n        {\n            \"id\": 2,\n            \"name\": \"Winter Cup 2024\",\n            \"organization\": {\n                \"name\": \"Mumbai Sports Association\"\n            },\n            \"start_date\": \"2024-12-01\",\n            \"end_date\": \"2024-12-03\",\n            \"venue_address\": \"Mumbai Stadium\",\n            \"completed\": true\n        }\n    ]\n}"
+                  "body": "{\n    \"upcoming_tournaments\": [\n        {\n            \"id\": 1,\n            \"name\": \"Summer Championship 2025\",\n            \"organization\": {\n                \"name\": \"Sports Club Delhi\"\n            },\n            \"start_date\": \"2025-09-15\",\n            \"end_date\": \"2025-09-17\",\n            \"venue_address\": \"Delhi Sports Complex\",\n            \"completed\": false\n        }\n    ],\n    \"ongoing_tournaments\": [\n        {\n            \"id\": 3,\n            \"name\": \"Spring Tournament 2025\",\n            \"organization\": {\n                \"name\": \"Chennai Sports Club\"\n            },\n            \"start_date\": \"2025-01-10\",\n            \"end_date\": \"2025-01-20\",\n            \"venue_address\": \"Chennai Sports Arena\",\n            \"completed\": false\n        }\n    ],\n    \"past_tournaments\": [\n        {\n            \"id\": 2,\n            \"name\": \"Winter Cup 2024\",\n            \"organization\": {\n                \"name\": \"Mumbai Sports Association\"\n            },\n            \"start_date\": \"2024-12-01\",\n            \"end_date\": \"2024-12-03\",\n            \"venue_address\": \"Mumbai Stadium\",\n            \"completed\": true\n        }\n    ]\n}"
                 }
               ]
             },
