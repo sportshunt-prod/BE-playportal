@@ -195,9 +195,9 @@ This document details the endpoints available in the Core API.
 
 ## Tournaments
 
-### List Upcoming and Past Tournaments
+### List Upcoming, Ongoing, and Past Tournaments
 
--   **Description:** Retrieves a list of upcoming and past tournaments.
+-   **Description:** Retrieves lists of upcoming tournaments (future start dates), ongoing tournaments (current date between start and end date), and past tournaments (past end dates), limited to 4 of each.
 -   **Endpoint:** `/upcoming-past_tournaments/`
 -   **Method:** `GET`
 -   **Success Response (200 OK):**
@@ -218,6 +218,23 @@ This document details the endpoints available in the Core API.
                 "start_day_date": "01",
                 "card_details": "Starts on September 1, 2025",
                 "end_date_": "September 5, 2025"
+            }
+        ],
+        "ongoing_tournaments": [
+            {
+                "id": 3,
+                "name": "Spring Tournament",
+                "organization": {
+                    "name": "Sports Org"
+                },
+                "start_date": "2025-01-10",
+                "end_date": "2025-01-20",
+                "venue_address": "789 Park Blvd, Anytown, USA",
+                "completed": false,
+                "start_month": "Jan",
+                "start_day_date": "10",
+                "card_details": "Ongoing until January 20, 2025",
+                "end_date_": "January 20, 2025"
             }
         ],
         "past_tournaments": [
