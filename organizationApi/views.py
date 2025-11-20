@@ -1568,6 +1568,7 @@ def tournament_details(request, tournament_id):
                         'match_number': match.match_number,
                         'stage_number': match.stage_number,
                         'sport': match.sport.name,
+                        'scoring_type': match.sport.scoring_type,
                         'category_id': category.id,
                         'category_name': category.name,
                         'fixture_type': category.fixture.fixtureType,
