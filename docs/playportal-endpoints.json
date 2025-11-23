@@ -900,7 +900,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n    \"id\": 1,\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys football category\",\n    \"price\": \"500\",\n    \"tournament_id\": 1,\n    \"registration_open\": false\n}"
+                  "body": "{\n    \"id\": 1,\n    \"name\": \"U19 Boys\",\n    \"details\": \"Under 19 boys football category\",\n    \"price\": \"500\",\n    \"tournament_id\": 1,\n    \"registration_status\": true\n}"
                 }
               ]
             },
@@ -957,7 +957,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"name\": \"Delhi Warriors\",\n    \"captain_name\": \"Rahul Sharma\",\n    \"captain_phone\": \"9876543210\",\n    \"captain_email\": \"rahul@delhiwarriors.com\"\n}",
+                  "raw": "{\n    \"name\": \"Delhi Warriors\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1559,7 +1559,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"fixtureType\": \"RR\",\n  \"no_of_rounds\": 1\n}",
+                  "raw": "{\n  \"fixture_type\": \"RR\",\n  \"no_of_rounds\": 1\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1628,7 +1628,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"message\": \"Round Robin fixture created successfully\",\n  \"fixture\": {\n    \"id\": 3,\n    \"fixture_name\": \"Round Robin Championship\",\n    \"fixture_type\": \"RR\",\n    \"total_rounds\": 1,\n    \"tournament\": {\n      \"id\": 1,\n      \"name\": \"City Championship\",\n      \"sport\": \"Football\"\n    },\n    \"category\": {\n      \"id\": 2,\n      \"name\": \"Men's Open\",\n      \"scoring_type\": \"simple\"\n    },\n    \"teams\": [\n      {\n        \"id\": 1,\n        \"name\": \"Delhi Warriors\",\n        \"captain\": \"Raj Kumar\",\n        \"phone\": \"+91-9876543210\"\n      },\n      {\n        \"id\": 2,\n        \"name\": \"Bangalore Tigers\",\n        \"captain\": \"Arjun Singh\",\n        \"phone\": \"+91-9876543211\"\n      },\n      {\n        \"id\": 3,\n        \"name\": \"Chennai Knights\",\n        \"captain\": \"Vikram Patel\",\n        \"phone\": \"+91-9876543212\"\n      },\n      {\n        \"id\": 4,\n        \"name\": \"Mumbai Eagles\",\n        \"captain\": \"Rohit Sharma\",\n        \"phone\": \"+91-9876543213\"\n      }\n    ],\n    \"matches\": [\n      {\n        \"id\": 7,\n        \"round\": 1,\n        \"match_number\": 1,\n        \"team1\": \"Delhi Warriors\",\n        \"team2\": \"Bangalore Tigers\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court A\",\n        \"time_slot\": \"09:00-10:00\"\n      },\n      {\n        \"id\": 8,\n        \"round\": 1,\n        \"match_number\": 2,\n        \"team1\": \"Chennai Knights\",\n        \"team2\": \"Mumbai Eagles\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court B\",\n        \"time_slot\": \"09:00-10:00\"\n      },\n      {\n        \"id\": 9,\n        \"round\": 1,\n        \"match_number\": 3,\n        \"team1\": \"Delhi Warriors\",\n        \"team2\": \"Chennai Knights\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court A\",\n        \"time_slot\": \"10:00-11:00\"\n      },\n      {\n        \"id\": 10,\n        \"round\": 1,\n        \"match_number\": 4,\n        \"team1\": \"Bangalore Tigers\",\n        \"team2\": \"Mumbai Eagles\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court B\",\n        \"time_slot\": \"10:00-11:00\"\n      },\n      {\n        \"id\": 11,\n        \"round\": 1,\n        \"match_number\": 5,\n        \"team1\": \"Delhi Warriors\",\n        \"team2\": \"Mumbai Eagles\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court A\",\n        \"time_slot\": \"11:00-12:00\"\n      },\n      {\n        \"id\": 12,\n        \"round\": 1,\n        \"match_number\": 6,\n        \"team1\": \"Bangalore Tigers\",\n        \"team2\": \"Chennai Knights\",\n        \"status\": \"scheduled\",\n        \"court\": \"Court B\",\n        \"time_slot\": \"11:00-12:00\"\n      }\n    ],\n    \"scoring_system\": {\n      \"type\": \"simple\",\n      \"description\": \"Single score per team. Higher score wins.\",\n      \"point_system\": {\n        \"win\": 3,\n        \"draw\": 1,\n        \"loss\": 0\n      }\n    },\n    \"standings\": {\n      \"table\": [\n        {\n          \"position\": 1,\n          \"team\": \"Delhi Warriors\",\n          \"played\": 0,\n          \"won\": 0,\n          \"drawn\": 0,\n          \"lost\": 0,\n          \"points\": 0,\n          \"goals_for\": 0,\n          \"goals_against\": 0,\n          \"goal_difference\": 0\n        },\n        {\n          \"position\": 2,\n          \"team\": \"Bangalore Tigers\",\n          \"played\": 0,\n          \"won\": 0,\n          \"drawn\": 0,\n          \"lost\": 0,\n          \"points\": 0,\n          \"goals_for\": 0,\n          \"goals_against\": 0,\n          \"goal_difference\": 0\n        },\n        {\n          \"position\": 3,\n          \"team\": \"Chennai Knights\",\n          \"played\": 0,\n          \"won\": 0,\n          \"drawn\": 0,\n          \"lost\": 0,\n          \"points\": 0,\n          \"goals_for\": 0,\n          \"goals_against\": 0,\n          \"goal_difference\": 0\n        },\n        {\n          \"position\": 4,\n          \"team\": \"Mumbai Eagles\",\n          \"played\": 0,\n          \"won\": 0,\n          \"drawn\": 0,\n          \"lost\": 0,\n          \"points\": 0,\n          \"goals_for\": 0,\n          \"goals_against\": 0,\n          \"goal_difference\": 0\n        }\n      ]\n    },\n    \"matches_per_round\": 6,\n    \"total_matches\": 6,\n    \"fixture_complete\": false,\n    \"winner\": null\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"fixture\": {\n    \"id\": 3,\n    \"type\": \"RR\",\n    \"category\": \"Men's Open\"\n  }\n}"
                 }
               ]
             },
@@ -1651,7 +1651,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"fixture_type\": \"RR_KO\",\n  \"no_of_rounds\": 1,\n  \"no_of_sets\": 5,\n  \"points_to_win\": 11,\n  \"knockout_qualifier_count\": 2\n}",
+                  "raw": "{\n  \"fixture_type\": \"RR_KO\",\n  \"no_of_rounds\": 1,\n  \"no_of_sets\": 5,\n  \"points_to_win\": 11\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1693,7 +1693,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"fixture_type\": \"RR_KO\",\n  \"no_of_rounds\": 1,\n  \"no_of_sets\": 5,\n  \"points_to_win\": 11,\n  \"knockout_qualifier_count\": 2\n}",
+                      "raw": "{\n  \"fixture_type\": \"RR_KO\",\n  \"no_of_rounds\": 1,\n  \"no_of_sets\": 5,\n  \"points_to_win\": 11\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1720,7 +1720,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"fixture\": {\n    \"id\": 3,\n    \"type\": \"RR_KO\",\n    \"category\": \"Mixed Doubles\"\n  },\n  \"message\": \"Round Robin phase created. Top 50% will auto-qualify for Knockout when RR completes.\"\n}"
+                  "body": "{\n  \"success\": true,\n  \"fixture\": {\n    \"id\": 3,\n    \"type\": \"RR_KO\",\n    \"category\": \"Mixed Doubles\"\n  }\n}"
                 }
               ]
             },
@@ -2052,7 +2052,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"message\": \"Match scheduled successfully on Court 2\",\n  \"match\": {\n    \"id\": 1,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"category\": \"U19 Boys\",\n    \"stage\": \"Quarter Final\",\n    \"status\": \"scheduled\"\n  },\n  \"court\": {\n    \"id\": 2,\n    \"name\": \"Court 2\",\n    \"tournament\": 1\n  },\n  \"position\": \"current\",\n  \"queue_position\": null,\n  \"next_available_matches\": 3\n}"
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Match scheduled successfully and assigned to Court 2\",\n  \"fixture_type\": \"KO\",\n  \"current_phase\": \"knockout\",\n  \"match\": {\n    \"id\": 1,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"round\": 1\n  },\n  \"court\": {\n    \"id\": 2,\n    \"name\": \"Court 2\"\n  },\n  \"position\": \"current\",\n  \"queue_position\": null,\n  \"next_available_matches\": 3\n}"
                 },
                 {
                   "name": "Match Queued (Court Occupied)",
@@ -2098,7 +2098,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"message\": \"Match scheduled and queued for Court 1 (position 2)\",\n  \"match\": {\n    \"id\": 2,\n    \"team1\": \"Chennai Knights\",\n    \"team2\": \"Wano Warriors\",\n    \"category\": \"U19 Boys\",\n    \"stage\": \"Quarter Final\",\n    \"status\": \"scheduled\"\n  },\n  \"court\": {\n    \"id\": 1,\n    \"name\": \"Court 1\",\n    \"tournament\": 1\n  },\n  \"position\": \"queued\",\n  \"queue_position\": 2,\n  \"next_available_matches\": 2\n}"
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Match scheduled and queued for Court 1 (position 2)\",\n  \"fixture_type\": \"KO\",\n  \"current_phase\": \"knockout\",\n  \"match\": {\n    \"id\": 2,\n    \"team1\": \"Chennai Knights\",\n    \"team2\": \"Wano Warriors\",\n    \"round\": 1\n  },\n  \"court\": {\n    \"id\": 1,\n    \"name\": \"Court 1\"\n  },\n  \"position\": \"queued\",\n  \"queue_position\": 2,\n  \"next_available_matches\": 2\n}"
                 },
                 {
                   "name": "Match Scheduled Without Court",
@@ -2144,7 +2144,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"message\": \"Match scheduled successfully (no court assigned)\",\n  \"match\": {\n    \"id\": 3,\n    \"team1\": \"Mumbai Eagles\",\n    \"team2\": \"Pune Panthers\",\n    \"category\": \"U19 Boys\",\n    \"stage\": \"Semi Final\",\n    \"status\": \"scheduled\"\n  },\n  \"next_available_matches\": 1\n}"
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Match scheduled successfully\",\n  \"fixture_type\": \"KO\",\n  \"current_phase\": \"knockout\",\n  \"match\": {\n    \"id\": 3,\n    \"team1\": \"Mumbai Eagles\",\n    \"team2\": \"Pune Panthers\",\n    \"round\": 2\n  },\n  \"next_available_matches\": 1\n}"
                 }
               ]
             },
@@ -2234,7 +2234,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"message\": \"Score updated successfully\",\n  \"match\": {\n    \"id\": 1,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"status\": \"ongoing\",\n    \"current_set\": 1\n  },\n  \"set_scores\": [\n    {\n      \"set_number\": 1,\n      \"team1_points\": 15,\n      \"team2_points\": 12,\n      \"winner\": null,\n      \"set_complete\": false\n    }\n  ],\n  \"match_winner\": null,\n  \"sets_won\": {\n    \"team1\": 0,\n    \"team2\": 0\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Set score incremented/decremented successfully\"\n}"
                 },
                 {
                   "name": "Set Won - Match Continues",
@@ -2250,7 +2250,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"message\": \"Set won by Delhi Warriors! Moving to Set 2\",\n  \"match\": {\n    \"id\": 1,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"status\": \"ongoing\",\n    \"current_set\": 2\n  },\n  \"set_scores\": [\n    {\n      \"set_number\": 1,\n      \"team1_points\": 21,\n      \"team2_points\": 18,\n      \"winner\": \"Delhi Warriors\",\n      \"set_complete\": true\n    },\n    {\n      \"set_number\": 2,\n      \"team1_points\": 0,\n      \"team2_points\": 0,\n      \"winner\": null,\n      \"set_complete\": false\n    }\n  ],\n  \"match_winner\": null,\n  \"sets_won\": {\n    \"team1\": 1,\n    \"team2\": 0\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Set 1 completed. Delhi Warriors won the set.\",\n  \"match_completed\": \"ongoing\",\n  \"winner\": null,\n  \"next_matches_available\": [],\n  \"tournament_completed\": false\n}"
                 }
               ]
             },
@@ -2340,7 +2340,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"message\": \"Score updated successfully\",\n  \"match\": {\n    \"id\": 4,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"status\": \"ongoing\"\n  },\n  \"simple_score\": {\n    \"team1_score\": 2,\n    \"team2_score\": 1\n  },\n  \"match_winner\": null\n}"
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Score incremented/decremented successfully\"\n}"
                 },
                 {
                   "name": "Match Completed - Simple Scoring",
@@ -2356,7 +2356,7 @@
                   "_postman_previewlanguage": "json",
                   "header": [],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"message\": \"Match completed! Delhi Warriors wins 3-1\",\n  \"match\": {\n    \"id\": 4,\n    \"team1\": \"Delhi Warriors\",\n    \"team2\": \"Bangalore Tigers\",\n    \"status\": \"completed\",\n    \"winner\": \"Delhi Warriors\"\n  },\n  \"simple_score\": {\n    \"team1_score\": 3,\n    \"team2_score\": 1\n  },\n  \"match_winner\": \"Delhi Warriors\",\n  \"next_match_updated\": true,\n  \"advancement\": {\n    \"message\": \"Delhi Warriors advances to Final\",\n    \"next_match_id\": 6\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Match completed successfully\",\n  \"match_completed\": \"completed\",\n  \"winner\": \"Delhi Warriors\",\n  \"next_matches_available\": [],\n  \"tournament_completed\": false\n}"
                 }
               ]
             },
