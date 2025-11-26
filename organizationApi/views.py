@@ -470,8 +470,9 @@ def create_ko_matches(request, tournament_id, category_id):
 
         # Initialize KO generator based on sport type
         if category_instance.tournament.sport.scoring_type == "sets":
-            no_sets = int(request.data.get("no_sets", 3))
-            points_win = int(request.data.get("points_win", 15))
+            # Use category's saved scoring configuration instead of request data
+            no_sets = category_instance.max_sets or 3
+            points_win = category_instance.required_points or 15
             ko_gen = KoGen(category_instance, request.data, no_sets, points_win)
         else:
             ko_gen = KoGen(category_instance, request.data)
