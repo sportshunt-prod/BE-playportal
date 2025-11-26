@@ -1743,7 +1743,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"matches\": [\n    {\"team_1\": 1, \"team_2\": 2},\n    {\"team_1\": 3, \"team_2\": 4}\n  ],\n  \"no_sets\": 3,\n  \"points_win\": 21\n}",
+                  "raw": "{\n  \"matches\": [\n    {\"team_1\": 1, \"team_2\": 2},\n    {\"team_1\": 3, \"team_2\": 4}\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1763,7 +1763,7 @@
                     ""
                   ]
                 },
-                "description": "Create knockout matches with organizer-selected team pairings for set-based sports (volleyball/badminton). Organizer decides first round matchups. System automatically creates all rounds including semi-finals and finals with TBD placeholders for future matches. Winners progress automatically."
+                "description": "Create knockout matches with organizer-selected team pairings for set-based sports (volleyball/badminton). Uses the scoring configuration (no_of_sets and points_to_win) from the fixture creation. Organizer decides first round matchups. System automatically creates all rounds including semi-finals and finals with TBD placeholders for future matches. Winners progress automatically."
               },
               "response": [
                 {
