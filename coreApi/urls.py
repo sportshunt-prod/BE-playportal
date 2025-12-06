@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
 from .views import *
 from .health import health_check, health_detailed, health_readiness, health_liveness
 from .version import api_info
@@ -28,6 +29,10 @@ urlpatterns = [
     path('profile/', profile_api, name='profile_api'),
     path('tournament/<int:tournament_id>/', tournament_detail_api, name='tournament_detail_api'),
     path('tournament/<int:tournament_id>/category/<int:category_id>/', category_detail_api, name='category_detail_api'),
+    # Razorpay Payment Routes
+    path('team-registration/create-order/', create_order, name='create-order'),
+    path('team-registration/verify-payment/', verify_payment, name='verify-payment'),
+    path('razorpay/webhook/', csrf_exempt(razorpay_webhook), name='razorpay-webhook'),
 ]
 
 app_name = 'core'
