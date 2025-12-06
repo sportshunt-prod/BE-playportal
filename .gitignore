@@ -53,6 +53,7 @@ coverage.xml
 
 frontend/
 
-.github/*
+.github/
 !.github/workflows
 !.github/workflows/*
+

@@ -87,3 +87,50 @@ class TournamentDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tournament
         fields = '__all__'
+
+
+# Payment Serializers for Razorpay Integration
+
+class CreateOrderSerializer(serializers.Serializer):
+    """Serializer for creating a new Razorpay order"""
+    tournament_id = serializers.IntegerField(required=True)
+    category_id = serializers.IntegerField(required=True)
+    team_name = serializers.CharField(max_length=100, required=True)
+    amount = serializers.IntegerField(required=True)  # Amount in rupees
+    
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than 0")
+        if value > 1000000:  # 10 lakhs max
+            raise serializers.ValidationError("Amount exceeds maximum limit")
+        return value
+    
+    def validate_tournament_id(self, value):
+        if not Tournament.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Tournament not found")
+        return value
+    
+    def validate_category_id(self, value):
+        if not Category.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Category not found")
+        return value
+
+
+class VerifyPaymentSerializer(serializers.Serializer):
+    """Serializer for verifying Razorpay payment"""
+    order_id = serializers.CharField(max_length=100, required=True)
+    razorpay_payment_id = serializers.CharField(max_length=100, required=True)
+    razorpay_signature = serializers.CharField(max_length=255, required=True)
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    """Serializer for Order model"""
+    class Meta:
+        from coreApi.models import Order
+        model = Order
+        fields = [
+            'order_id', 'amount', 'payment_status', 'razorpay_order_id',
+            'payment_id', 'signature', 'order_timestamp', 'team_name',
+            'tournament_instance', 'category_instance'
+        ]
+        read_only_fields = ['order_id', 'order_timestamp']
