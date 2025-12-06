@@ -57,3 +57,7 @@ frontend/
 !.github/workflows
 !.github/workflows/*
 
+
+# Local deployment log (tracked only locally)
+blog.md
+

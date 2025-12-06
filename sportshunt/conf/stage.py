@@ -1,4 +1,4 @@
-from.common import *
+from .common import *
 
 
 SECRET_KEY = "django-insecure-a5$u$o^s8o)y%bsaxnl%lbzn$mc&w#7po^gy#b_oe%g&(py_yj"
@@ -12,6 +12,7 @@ DATABASES = {
     }
 }
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 WSGI_APPLICATION = "sportshunt.wsgi.application"

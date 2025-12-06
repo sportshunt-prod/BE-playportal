@@ -1,15 +1,31 @@
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from .views import *
+from .health import health_check, health_detailed, health_readiness, health_liveness
+from .version import api_info
 
 urlpatterns = [
+    # Health check endpoints
+    path('health/', health_check, name='health_check'),
+    path('health/detailed/', health_detailed, name='health_detailed'),
+    path('health/readiness/', health_readiness, name='health_readiness'),
+    path('health/liveness/', health_liveness, name='health_liveness'),
+    
+    # API info endpoint
+    path('api/info/', api_info, name='api_info'),
+    
+    # Authentication endpoints
     path('auth/check/', index, name='auth_check'),
     path('auth/register/', register_api, name='register'),
     path('auth/login/', login_api, name='login'),
     path('auth/google/', google_auth_api, name='google_auth'),
     path('auth/logout/', logout_view, name='logout'),
+    
+    # Public endpoints
     path('sports/', sports_list_api, name='sports_list'),
     path('upcoming-past_tournaments/', tournament_list, name='tournament_list'),
+    
+    # Protected endpoints
     path('profile/', profile_api, name='profile_api'),
     path('tournament/<int:tournament_id>/', tournament_detail_api, name='tournament_detail_api'),
     path('tournament/<int:tournament_id>/category/<int:category_id>/', category_detail_api, name='category_detail_api'),

@@ -1,12 +1,78 @@
 from .common import *
 from dotenv import load_dotenv
 import os
-import secrets
-import string
 from pathlib import Path
 import tempfile
+from urllib.parse import urlparse
 
 load_dotenv()
+
+
+def get_required_env(var_name):
+    value = os.environ.get(var_name)
+    if value is None:
+        raise ValueError(f"Missing required environment variable: {var_name}")
+    value = value.strip()
+    if not value:
+        raise ValueError(f"Environment variable '{var_name}' cannot be empty")
+    return value
+
+
+def parse_csv(value):
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def prepare_frontend_urls(urls):
+    formatted_urls = []
+    origins = []
+    for url in urls:
+        cleaned = url.strip()
+        if not cleaned:
+            continue
+
+        parsed = urlparse(cleaned)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError(
+                "FRONTEND_URL entries must be fully qualified URLs "
+                "(e.g., https://app.example.com)"
+            )
+
+        formatted_urls.append(cleaned)
+        origins.append(f"{parsed.scheme}://{parsed.netloc}")
+
+    if not formatted_urls:
+        raise ValueError("FRONTEND_URL must include at least one valid URL")
+
+    # Preserve ordering while removing duplicates
+    return list(dict.fromkeys(formatted_urls)), list(dict.fromkeys(origins))
+
+
+def normalize_allowed_hosts(hosts):
+    normalized = []
+    for host in hosts:
+        cleaned = host.strip()
+        if not cleaned:
+            continue
+        if "://" in cleaned:
+            raise ValueError("ALLOWED_HOSTS entries must not include schemes")
+        normalized.append(cleaned)
+
+    if not normalized:
+        raise ValueError("ALLOWED_HOSTS must define at least one hostname")
+
+    return list(dict.fromkeys(normalized))
+
+
+def build_host_origins(hosts, scheme, include_wildcards=True):
+    origins = []
+    for host in hosts:
+        formatted = host
+        if formatted.startswith('.'):
+            formatted = f"*.{formatted.lstrip('.')}"
+        if not include_wildcards and '*' in formatted:
+            continue
+        origins.append(f"{scheme}://{formatted}")
+    return list(dict.fromkeys(origins))
 
 # Production-specific logging configuration
 LOGS_DIR = os.environ.get('LOGS_DIR', str(BASE_DIR / 'logs'))
@@ -126,24 +192,16 @@ def get_logging_config():
 
 LOGGING = get_logging_config()
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', ''.join(secrets.choice(string.ascii_letters + string.digits + string.punctuation) for _ in range(50)))
+SECRET_KEY = get_required_env('DJANGO_SECRET_KEY')
 DEBUG = False
 
-required_env_vars = {
-    'GOOGLE_CLIENT_ID': os.environ.get('GOOGLE_CLIENT_ID'),
-    'GOOGLE_CLIENT_SECRET': os.environ.get('GOOGLE_CLIENT_SECRET'),
-    'FRONTEND_URL': os.environ.get('FRONTEND_URL'),
-    'JWT_SECRET': os.environ.get('JWT_SECRET')
-}
+GOOGLE_CLIENT_ID = get_required_env('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = get_required_env('GOOGLE_CLIENT_SECRET')
+JWT_SECRET = get_required_env('JWT_SECRET')
 
-for var_name, value in required_env_vars.items():
-    if not value:
-        raise ValueError(f"Missing required environment variable: {var_name}")
-
-GOOGLE_CLIENT_ID = required_env_vars['GOOGLE_CLIENT_ID']
-GOOGLE_CLIENT_SECRET = required_env_vars['GOOGLE_CLIENT_SECRET']
-FRONTEND_URL = required_env_vars['FRONTEND_URL'].strip().split(",")
-JWT_SECRET = required_env_vars['JWT_SECRET'].strip()
+FRONTEND_URL, FRONTEND_ORIGINS = prepare_frontend_urls(parse_csv(get_required_env('FRONTEND_URL')))
+ALLOWED_HOSTS = normalize_allowed_hosts(parse_csv(get_required_env('ALLOWED_HOSTS')))
+POSTGRES_PASSWORD = get_required_env('POSTGRES_PASSWORD')
 
 # Production email settings (configure for password reset)
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -153,25 +211,28 @@ JWT_SECRET = required_env_vars['JWT_SECRET'].strip()
 # EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 # EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').strip().split(",") if os.environ.get('ALLOWED_HOSTS') else []
+# Allow disabling HTTPS enforcement for specific deployments
+USE_HTTPS = os.environ.get('USE_HTTPS', 'true').lower() == 'true'
+HOST_SCHEME = 'https' if USE_HTTPS else 'http'
 
-CSRF_TRUSTED_ORIGINS = [
-    *[f"{url.strip()}" for url in FRONTEND_URL ],
-    *[f"https://{url.strip()}" for url in ALLOWED_HOSTS ],
-]
+HOST_ORIGINS = build_host_origins(ALLOWED_HOSTS, HOST_SCHEME)
+HOST_ORIGINS_NO_WILDCARD = build_host_origins(ALLOWED_HOSTS, HOST_SCHEME, include_wildcards=False)
 
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(FRONTEND_ORIGINS + HOST_ORIGINS))
 CSRF_COOKIE_HTTPONLY = False  # Ensure CSRF token is accessible to JavaScript
+CSRF_COOKIE_SAMESITE = 'Lax'
 
-STATIC_URL = "static/"
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(FRONTEND_ORIGINS + HOST_ORIGINS_NO_WILDCARD))
+
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# WhiteNoise configuration
+WHITENOISE_USE_FINDERS = False  # Disable finders in production for better performance
+WHITENOISE_AUTOREFRESH = False  # Disable auto-refresh in production
 
 WSGI_APPLICATION = "sportshunt.wsgi.application"
-
-CORS_ALLOWED_ORIGINS = [
-    *[f"{url.strip()}" for url in FRONTEND_URL],
-    *[f"https://{url.strip()}" for url in ALLOWED_HOSTS if url.strip()],
-]
 
 # CORS Configuration
 CORS_ALLOW_CREDENTIALS = True
@@ -195,8 +256,6 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-CSRF_COOKIE_SAMESITE = 'Lax'
-
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.db.backends.sqlite3",
@@ -210,7 +269,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get('POSTGRES_DB', 'playportal'),
         "USER": os.environ.get('POSTGRES_USER', 'postgres'),
-        "PASSWORD": os.environ.get('POSTGRES_PASSWORD'),
+        "PASSWORD": POSTGRES_PASSWORD,
         "HOST": os.environ.get('POSTGRES_HOST', 'localhost'),
         "PORT": os.environ.get('POSTGRES_PORT', '5432'),
         "CONN_MAX_AGE": 600,  # Connection pooling - keeps connections alive for 10 minutes
@@ -220,9 +279,6 @@ DATABASES = {
     }
 }
 # Security settings
-# Allow disabling HTTPS enforcement for local testing via environment variable
-USE_HTTPS = os.environ.get('USE_HTTPS', 'true').lower() == 'true'
-
 if USE_HTTPS:
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
@@ -242,3 +298,6 @@ else:
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+SESSION_COOKIE_SAMESITE = 'Lax'
