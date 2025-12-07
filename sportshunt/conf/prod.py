@@ -203,6 +203,9 @@ FRONTEND_URL, FRONTEND_ORIGINS = prepare_frontend_urls(parse_csv(get_required_en
 ALLOWED_HOSTS = normalize_allowed_hosts(parse_csv(get_required_env('ALLOWED_HOSTS')))
 POSTGRES_PASSWORD = get_required_env('POSTGRES_PASSWORD')
 
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+
 # Production email settings (configure for password reset)
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = os.environ.get('EMAIL_HOST')
